@@ -18,6 +18,7 @@ function toLocalInputValue(iso: string): string {
 
 export default function ExamBuilder() {
   const { id: existingExamId } = useParams();
+  const rolePath = useRolePath();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [subjectId, setSubjectId] = useState("");

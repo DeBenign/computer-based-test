@@ -21,6 +21,7 @@ function idSuffix(id?: string) {
 }
 
 export default function UserManagement() {
+  const rolePath = useRolePath();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);

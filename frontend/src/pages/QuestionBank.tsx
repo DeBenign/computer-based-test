@@ -27,6 +27,7 @@ const rolePath = useRolePath();
 export default function QuestionBank() {
   const { user } = useAuth();
   const canManage = user?.role === "teacher"; // admin gets read-only oversight here
+  const rolePath = useRolePath();
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);

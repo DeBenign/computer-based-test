@@ -24,6 +24,7 @@ interface PendingAnswer {
 export default function TestTaking() {
   const { id: examId } = useParams();
   const navigate = useNavigate();
+  const rolePath = useRolePath();
 
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<AttemptQuestion[]>([]);

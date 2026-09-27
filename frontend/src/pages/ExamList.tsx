@@ -10,8 +10,6 @@ import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
 
-const rolePath = useRolePath();
-
 function statusInfo(exam: Exam): { label: string; tone: "success" | "warning" | "neutral" } {
   const now = Date.now();
   const start = new Date(exam.startTime).getTime();
@@ -33,6 +31,7 @@ export default function ExamList() {
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const { user } = useAuth();
+  const rolePath = useRolePath();
 
   async function loadAll() {
     const [examRes, classRes, subRes] = await Promise.all([
