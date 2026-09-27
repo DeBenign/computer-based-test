@@ -14,6 +14,7 @@ import adminQuestionRoutes from "./routes/adminQuestionRoutes";
 import adminExamRoutes from "./routes/adminExamRoutes";         
 import { requireRole } from "./middleware/requireRole";
 import { errorHandler } from "./middleware/errorHandler";
+import { requireAuth } from "./middleware/auth";
 
 dotenv.config();
 
@@ -26,23 +27,23 @@ const v1 = express.Router();
 v1.use("/auth", authRoutes);
 
 // Admin: setup, account management, read-only oversight
-v1.use("/admin/classes", requireRole("admin"), classRoutes);
-v1.use("/admin/subjects", requireRole("admin"), subjectRoutes);
-v1.use("/admin/users", requireRole("admin"), userRoutes);
-v1.use("/admin/questions", requireRole("admin"), adminQuestionRoutes);
-v1.use("/admin/exams", requireRole("admin"), adminExamRoutes);
+v1.use("/admin/classes", requireAuth, requireRole("admin"), classRoutes);
+v1.use("/admin/subjects", requireAuth, requireRole("admin"), subjectRoutes);
+v1.use("/admin/users", requireAuth, requireRole("admin"), userRoutes);
+v1.use("/admin/questions", requireAuth, requireRole("admin"), adminQuestionRoutes);
+v1.use("/admin/exams", requireAuth, requireRole("admin"), adminExamRoutes);
 
 // Teacher: also needs to read classes/subjects to build exams against them
-v1.use("/teacher/classes", requireRole("teacher"), classRoutes);
-v1.use("/teacher/subjects", requireRole("teacher"), subjectRoutes);
-v1.use("/teacher/questions", requireRole("teacher"), questionRoutes);
-v1.use("/teacher/exams", requireRole("teacher"), examRoutes);
-v1.use("/teacher/results", requireRole("teacher"), resultRoutes);
+v1.use("/teacher/classes", requireAuth, requireRole("teacher"), classRoutes);
+v1.use("/teacher/subjects", requireAuth, requireRole("teacher"), subjectRoutes);
+v1.use("/teacher/questions",requireAuth,  requireRole("teacher"), questionRoutes);
+v1.use("/teacher/exams", requireAuth, requireRole("teacher"), examRoutes);
+v1.use("/teacher/results", requireAuth, requireRole("teacher"), resultRoutes);
 
 // Student: taking exams, own results
-v1.use("/student/exams", requireRole("student"), examRoutes);
-v1.use("/student/attempts", requireRole("student"), attemptRoutes);
-v1.use("/student/results", requireRole("student"), resultRoutes);
+v1.use("/student/exams", requireAuth, requireRole("student"), examRoutes);
+v1.use("/student/attempts", requireAuth, requireRole("student"), attemptRoutes);
+v1.use("/student/results", requireAuth, requireRole("student"), resultRoutes);
 
 app.use("/api/v1", v1);
 app.get("/api/v1/health", (_req, res) => res.json({ status: "ok" }));

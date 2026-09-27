@@ -52,6 +52,7 @@ export default function ExamList() {
   }
 
   const isStudent = user?.role === "student";
+  const canManage = user?.role === "teacher";
   const classById = Object.fromEntries(classes.map((c) => [c._id, c]));
   const subjectById = Object.fromEntries(subjects.map((s) => [s._id, s]));
 
@@ -59,11 +60,11 @@ export default function ExamList() {
     <PageShell maxWidth={640}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1 style={{ marginBottom: 0 }}>{isStudent ? "My exams" : "Exams"}</h1>
-        {!isStudent && (
-          <Link to="/exams/new">
-            <PrimaryButton type="button">+ New exam</PrimaryButton>
-          </Link>
-        )}
+          {canManage && (
+            <Link to="/exams/new">
+              <PrimaryButton type="button">+ New exam</PrimaryButton>
+            </Link>
+          )}
       </div>
 
       {exams.length === 0 && <p style={{ color: "var(--text-secondary)" }}>No exams yet.</p>}
@@ -102,14 +103,14 @@ export default function ExamList() {
               </Link>
             )}
 
-            {!isStudent && isDraft && (
-              <div style={{ display: "flex", gap: 8 }}>
-                <Link to={`/exams/${exam._id}/edit`}>
-                  <button type="button">Continue setup</button>
-                </Link>
-                <button type="button" onClick={() => handleDelete(exam._id)}>Delete</button>
-              </div>
-            )}
+           {canManage && isDraft && (
+            <div style={{ display: "flex", gap: 8 }}>
+              <Link to={`/exams/${exam._id}/edit`}>
+                <button type="button">Continue setup</button>
+              </Link>
+              <button type="button" onClick={() => handleDelete(exam._id)}>Delete</button>
+            </div>
+          )}
           </Card>
         );
       })}
