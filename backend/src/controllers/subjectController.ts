@@ -20,6 +20,17 @@ export async function listSubjects(req: AuthedRequest, res: Response) {
   res.json(subjects);
 }
 
+export async function updateSubject(req: AuthedRequest, res: Response) {
+  const { classIds } = req.body;
+  const subject = await Subject.findOneAndUpdate(
+    { _id: req.params.id, schoolId: req.user!.schoolId },
+    { classIds },
+    { new: true }
+  );
+  if (!subject) return res.status(404).json({ error: "Subject not found" });
+  res.json(subject);
+}
+
 export async function deleteSubject(req: AuthedRequest, res: Response) {
   const subject = await Subject.findOne({ _id: req.params.id, schoolId: req.user!.schoolId });
   if (!subject) return res.status(404).json({ error: "Subject not found" });

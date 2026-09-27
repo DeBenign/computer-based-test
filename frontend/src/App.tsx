@@ -11,6 +11,7 @@ import ExamList from "./pages/ExamList";
 import TestTaking from "./pages/TestTaking";
 import Results from "./pages/Results";
 import UserManagement from "./pages/UserManagement";
+import RequireExactRole from "./components/RequireExactRole";
 
 export default function App() {
   return (
@@ -22,7 +23,10 @@ export default function App() {
 
           <Route path="/:role" element={<RequireRole />}>
             <Route element={<AppLayout />}>
-              <Route path="setup" element={<Setup />} />
+              <Route element={<RequireExactRole allow={["admin"]} />}>
+                <Route path="setup" element={<Setup />} />
+                <Route path="users" element={<UserManagement />} />
+              </Route>
               <Route path="questions" element={<QuestionBank />} />
               <Route path="exams" element={<ExamList />} />
               <Route path="exams/new" element={<ExamBuilder />} />

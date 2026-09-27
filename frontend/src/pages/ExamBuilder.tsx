@@ -124,7 +124,7 @@ export default function ExamBuilder() {
       <PageShell maxWidth={520}>
         <h1>New exam</h1>
         <Card>
-          <p style={{ marginBottom: 12 }}>You need at least one class and one subject before creating an exam.</p>
+          <p style={{ marginBottom: 12 }}>You need at least one class and one subject before creating an exam. Ask your school admin to add class and subject for you first.</p>
             <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>

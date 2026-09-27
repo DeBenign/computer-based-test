@@ -114,7 +114,7 @@ export default function QuestionBank() {
       <PageShell maxWidth={520}>
         <h1>Question bank</h1>
         <Card>
-          <p style={{ marginBottom: 12 }}>You need at least one subject before you can add questions.</p>
+          <p style={{ marginBottom: 12 }}>You need at least one subject before you can add questions. Ask your school admin to add subject for you first.</p>
           <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
