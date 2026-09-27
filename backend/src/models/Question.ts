@@ -8,6 +8,7 @@ export interface IOption {
 export interface IQuestion extends Document {
   schoolId: Types.ObjectId;
   subjectId: Types.ObjectId;
+  classId: Types.ObjectId; 
   topic: string;
   type: "mcq" | "theory"; // MVP only creates "mcq"
   difficulty: "easy" | "medium" | "hard";
@@ -32,6 +33,7 @@ const optionSchema = new Schema<IOption>(
 const questionSchema = new Schema<IQuestion>({
   schoolId: { type: Schema.Types.ObjectId, ref: "School", required: true },
   subjectId: { type: Schema.Types.ObjectId, ref: "Subject", required: true },
+    classId: { type: Schema.Types.ObjectId, ref: "Class", required: true },
   topic: { type: String, required: true },
   type: { type: String, enum: ["mcq", "theory"], default: "mcq" },
   difficulty: { type: String, enum: ["easy", "medium", "hard"], default: "medium" },

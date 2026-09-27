@@ -7,7 +7,6 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
-const rolePath = useRolePath();
 
 interface AttemptQuestion {
   _id: string;

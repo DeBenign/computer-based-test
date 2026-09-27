@@ -3,10 +3,11 @@ import { AuthedRequest } from "../middleware/auth";
 import Question from "../models/Question";
 
 export async function createQuestion(req: AuthedRequest, res: Response) {
-  const { subjectId, topic, difficulty, questionText, options, marks, curriculumTag } = req.body;
+  const { subjectId, classId, topic, difficulty, questionText, options, marks, curriculumTag } = req.body;
   const question = await Question.create({
     schoolId: req.user!.schoolId,
     subjectId,
+    classId,
     topic,
     type: "mcq",
     difficulty,
@@ -20,9 +21,10 @@ export async function createQuestion(req: AuthedRequest, res: Response) {
 }
 
 export async function listQuestions(req: AuthedRequest, res: Response) {
-  const { subjectId, topic, difficulty } = req.query;
+  const { subjectId, classId, topic, difficulty } = req.query;
   const filter: Record<string, unknown> = { schoolId: req.user!.schoolId };
   if (subjectId) filter.subjectId = subjectId;
+  if (classId) filter.classId = classId;
   if (topic) filter.topic = topic;
   if (difficulty) filter.difficulty = difficulty;
 

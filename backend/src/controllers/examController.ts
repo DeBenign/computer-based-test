@@ -128,6 +128,7 @@ export async function autoFill(req: AuthedRequest, res: Response) {
   const filter: Record<string, unknown> = {
     schoolId: new mongoose.Types.ObjectId(req.user!.schoolId),
     subjectId: exam.subjectId,
+    classId: exam.classId,
     type: "mcq"
   };
   if (topics && topics.length > 0) {

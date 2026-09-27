@@ -2,7 +2,7 @@ import { useEffect, useState, FormEvent } from "react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { Question, Subject } from "../types";
+import { Question, Subject, ClassRoom } from "../types";
 import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
@@ -22,8 +22,6 @@ const difficultyTone: Record<string, "success" | "warning" | "danger"> = {
   hard: "danger"
 };
 
-const rolePath = useRolePath();
-
 export default function QuestionBank() {
   const { user } = useAuth();
   const canManage = user?.role === "teacher"; // admin gets read-only oversight here
@@ -31,6 +29,8 @@ export default function QuestionBank() {
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [classes, setClasses] = useState<ClassRoom[]>([]);
+  const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
@@ -39,6 +39,11 @@ export default function QuestionBank() {
   const [marks, setMarks] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
+  async function loadClasses() {
+    const res = await api.get("/classes");
+    setClasses(res.data);
+  }
+
   async function loadSubjects() {
     const res = await api.get("/subjects");
     setSubjects(res.data);
@@ -46,19 +51,33 @@ export default function QuestionBank() {
   }
 
   async function loadQuestions() {
-    const res = await api.get("/questions", { params: { subjectId: subjectId || undefined } });
+    const res = await api.get("/questions", { params: { subjectId: subjectId || undefined, classId: classId || undefined } });
     setQuestions(res.data);
   }
 
   useEffect(() => {
     loadSubjects();
+    loadClasses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Only offer classes this subject is actually taught in
+  const subject = subjects.find((s) => s._id === subjectId);
+  const classOptions = classes.filter((c) => subject?.classIds.includes(c._id));
+
+  // Reset classId whenever the subject (or the classes list itself) changes --
+  // both loadSubjects() and loadClasses() fire in parallel on mount, so this
+  // has to depend on `classes` too, not just `subjectId`, or it can fire once
+  // before `classes` has actually loaded and get stuck on an empty string.
   useEffect(() => {
-    if (subjectId) loadQuestions();
+    setClassId(classOptions[0]?._id || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subjectId]);
+  }, [subjectId, classes]);
+
+  useEffect(() => {
+    if (subjectId && classId) loadQuestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjectId, classId]);
 
   function updateOptionText(index: number, text: string) {
     setOptions((prev) => prev.map((o, i) => (i === index ? { ...o, text } : o)));
@@ -76,7 +95,7 @@ export default function QuestionBank() {
       return;
     }
     try {
-      await api.post("/questions", { subjectId, topic, difficulty, questionText, options, marks });
+      await api.post("/questions", { subjectId, classId, topic, difficulty, questionText, options, marks });
       setQuestionText("");
       setOptions(emptyOptions);
       await loadQuestions();
@@ -96,7 +115,7 @@ export default function QuestionBank() {
         <h1>Question bank</h1>
         <Card>
           <p style={{ marginBottom: 12 }}>You need at least one subject before you can add questions.</p>
-            <Link to={rolePath("/setup")}>
+          <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
         </Card>
@@ -108,18 +127,32 @@ export default function QuestionBank() {
     <PageShell maxWidth={760}>
       <h1>Question bank</h1>
 
+      <Card style={{ marginBottom: 24 }}>
+        <h3>Filter</h3>
+        <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <label>Subject</label>
+            <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} style={{ width: "100%" }}>
+              {subjects.map((s) => (
+                <option key={s._id} value={s._id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1 }}>
+            <label>Class</label>
+            <select value={classId} onChange={(e) => setClassId(e.target.value)} style={{ width: "100%" }}>
+              {classOptions.map((c) => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </Card>
+
       {canManage && (
         <Card style={{ marginBottom: 24 }}>
           <h3>Add a question</h3>
           <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-            <div style={{ flex: 1 }}>
-              <label>Subject</label>
-              <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} style={{ width: "100%" }}>
-                {subjects.map((s) => (
-                  <option key={s._id} value={s._id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
             <div style={{ flex: 1 }}>
               <label>Topic</label>
               <input value={topic} onChange={(e) => setTopic(e.target.value)} required style={{ width: "100%" }} />
@@ -171,7 +204,11 @@ export default function QuestionBank() {
 
       <h3>Bank ({questions.length})</h3>
       {questions.length === 0 && (
-        <p style={{ color: "var(--text-secondary)" }}>No questions yet for this subject. Add your first one above.</p>
+        <p style={{ color: "var(--text-secondary)" }}>
+          {canManage
+            ? "No questions yet for this subject. Add your first one above."
+            : "No questions yet for this subject."}
+        </p>
       )}
       {questions.map((q) => (
         <Card key={q._id} style={{ marginBottom: 10 }}>

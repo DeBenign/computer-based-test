@@ -7,8 +7,6 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
-const rolePath = useRolePath();
-
 // Convert an ISO date string to the "YYYY-MM-DDTHH:mm" shape <input type="datetime-local"> expects.
 function toLocalInputValue(iso: string): string {
   const d = new Date(iso);

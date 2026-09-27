@@ -8,7 +8,6 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
-const rolePath = useRolePath();
 
 const roleTone: Record<string, "accent" | "warning" | "success"> = {
   admin: "accent",
