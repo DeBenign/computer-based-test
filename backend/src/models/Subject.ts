@@ -11,5 +11,6 @@ const subjectSchema = new Schema<ISubject>({
   name: { type: String, required: true },
   classIds: [{ type: Schema.Types.ObjectId, ref: "Class" }]
 });
+subjectSchema.index({ schoolId: 1, name: 1 }, { unique: true });
 
 export default model<ISubject>("Subject", subjectSchema);

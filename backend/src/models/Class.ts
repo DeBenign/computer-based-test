@@ -11,5 +11,6 @@ const classSchema = new Schema<IClass>({
   name: { type: String, required: true },
   academicYear: { type: String, required: true }
 });
+classSchema.index({ schoolId: 1, name: 1 }, { unique: true });
 
 export default model<IClass>("Class", classSchema);
