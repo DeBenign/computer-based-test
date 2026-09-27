@@ -7,6 +7,7 @@ import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
+import { useRolePath } from "../hooks/useRolePath";
 
 const emptyOptions = [
   { text: "", isCorrect: true },
@@ -20,6 +21,8 @@ const difficultyTone: Record<string, "success" | "warning" | "danger"> = {
   medium: "warning",
   hard: "danger"
 };
+
+const rolePath = useRolePath();
 
 export default function QuestionBank() {
   const { user } = useAuth();
@@ -92,7 +95,7 @@ export default function QuestionBank() {
         <h1>Question bank</h1>
         <Card>
           <p style={{ marginBottom: 12 }}>You need at least one subject before you can add questions.</p>
-          <Link to="/setup">
+            <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
         </Card>

@@ -7,6 +7,10 @@ import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
+import { useRolePath } from "../hooks/useRolePath";
+
+
+const rolePath = useRolePath();
 
 function statusInfo(exam: Exam): { label: string; tone: "success" | "warning" | "neutral" } {
   const now = Date.now();
@@ -61,9 +65,9 @@ export default function ExamList() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1 style={{ marginBottom: 0 }}>{isStudent ? "My exams" : "Exams"}</h1>
           {canManage && (
-            <Link to="/exams/new">
-              <PrimaryButton type="button">+ New exam</PrimaryButton>
-            </Link>
+           <Link to={rolePath("/exams/new")}>
+            <PrimaryButton type="button">+ New exam</PrimaryButton>
+          </Link>
           )}
       </div>
 
@@ -92,20 +96,20 @@ export default function ExamList() {
             )}
 
             {isStudent && isOpen && (
-              <Link to={`/exams/${exam._id}/take`}>
+              <Link to={rolePath(`/exams/${exam._id}/take`)}>
                 <PrimaryButton type="button">Start exam</PrimaryButton>
               </Link>
             )}
 
             {isClosed && (
-              <Link to={`/results?examId=${exam._id}`}>
+              <Link to={rolePath(`/results?examId=${exam._id}`)}>
                 <button type="button">{isStudent ? "View my result" : "View results"}</button>
               </Link>
             )}
 
            {canManage && isDraft && (
             <div style={{ display: "flex", gap: 8 }}>
-              <Link to={`/exams/${exam._id}/edit`}>
+              <Link to={rolePath(`/exams/${exam._id}/edit`)}>
                 <button type="button">Continue setup</button>
               </Link>
               <button type="button" onClick={() => handleDelete(exam._id)}>Delete</button>

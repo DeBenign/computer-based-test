@@ -6,6 +6,9 @@ import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
+import { useRolePath } from "../hooks/useRolePath";
+
+const rolePath = useRolePath();
 
 const roleTone: Record<string, "accent" | "warning" | "success"> = {
   admin: "accent",
@@ -110,7 +113,7 @@ export default function UserManagement() {
           <p style={{ marginBottom: 12 }}>
             Add at least one class and one subject in Setup before creating student or teacher accounts.
           </p>
-          <Link to="/setup">
+           <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
         </Card>

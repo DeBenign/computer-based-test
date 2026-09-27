@@ -5,6 +5,9 @@ import { Subject, ClassRoom } from "../types";
 import Card from "../components/Card";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
+import { useRolePath } from "../hooks/useRolePath";
+
+const rolePath = useRolePath();
 
 // Convert an ISO date string to the "YYYY-MM-DDTHH:mm" shape <input type="datetime-local"> expects.
 function toLocalInputValue(iso: string): string {
@@ -30,6 +33,7 @@ export default function ExamBuilder() {
   const [examId, setExamId] = useState<string | null>(existingExamId || null);
   const [loading, setLoading] = useState(!!existingExamId);
   const navigate = useNavigate();
+  
 
   useEffect(() => {
     (async () => {
@@ -97,16 +101,16 @@ export default function ExamBuilder() {
     }
   }
 
-  async function handlePublish() {
-    if (!examId) return;
-    try {
-      await api.post(`/exams/${examId}/publish`);
-      setStatus("Exam published and scheduled.");
-      navigate("/exams");
-    } catch (err: any) {
-      setStatus(err.response?.data?.error || "Couldn't publish the exam.");
+      async function handlePublish() {
+        if (!examId) return;
+        try {
+          await api.post(`/exams/${examId}/publish`);
+          setStatus("Exam published and scheduled.");
+          navigate(rolePath("/exams"));
+        } catch (err: any) {
+          setStatus(err.response?.data?.error || "Couldn't publish the exam.");
+        }
     }
-  }
 
   if (loading) {
     return (
@@ -122,7 +126,7 @@ export default function ExamBuilder() {
         <h1>New exam</h1>
         <Card>
           <p style={{ marginBottom: 12 }}>You need at least one class and one subject before creating an exam.</p>
-          <Link to="/setup">
+            <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
         </Card>

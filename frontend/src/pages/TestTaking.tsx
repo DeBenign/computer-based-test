@@ -5,6 +5,9 @@ import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
+import { useRolePath } from "../hooks/useRolePath";
+
+const rolePath = useRolePath();
 
 interface AttemptQuestion {
   _id: string;
@@ -124,7 +127,7 @@ export default function TestTaking() {
         await api.post(`/attempts/${attemptId}/autosave`, { answers: pending });
       }
       await api.post(`/attempts/${attemptId}/submit`);
-      navigate("/exams", { state: { message: auto ? "Time's up — your exam was submitted automatically." : "Exam submitted." } });
+      navigate(rolePath("/exams"), { state: { message: auto ? "Time's up — your exam was submitted automatically." : "Exam submitted." } });
     } catch {
       setError("Couldn't reach the server. Your answers are saved and will submit once you're back online.");
       retrySubmitWhenOnline();
@@ -136,7 +139,7 @@ export default function TestTaking() {
       try {
         await api.post(`/attempts/${attemptId}/submit`);
         window.removeEventListener("online", retry);
-        navigate("/exams", { state: { message: "Exam submitted." } });
+        navigate(rolePath("/exams"), { state: { message: "Exam submitted." } });
       } catch {
         // wait for the next online event
       }

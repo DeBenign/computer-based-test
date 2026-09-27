@@ -20,10 +20,9 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { email, password });
-      login(res.data.token, res.data.user);
-      const role = res.data.user.role;
-      navigate(role === "student" ? "/exams" : "/questions");
-    } catch (err: any) {
+        login(res.data.token, res.data.user);
+        const role = res.data.user.role;
+        navigate(role === "student" ? `/${role}/exams` : `/${role}/questions`);    } catch (err: any) {
       setError(err.response?.data?.error || "Couldn't log in. Check your details and try again.");
     } finally {
       setLoading(false);
