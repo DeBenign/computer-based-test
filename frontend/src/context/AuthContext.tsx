@@ -19,11 +19,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function login(token: string, user: AuthUser) {
     localStorage.setItem("cbt_token", token);
+    localStorage.setItem("cbt_role", user.role);
     setUser(user);
   }
 
   function logout() {
     localStorage.removeItem("cbt_token");
+    localStorage.removeItem("cbt_role");
     setUser(null);
   }
 
