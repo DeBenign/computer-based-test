@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 import { AuthedRequest } from "../middleware/auth";
+import School from "../models/School";
 
 // Only a logged-in admin can call this (see authRoutes.ts). schoolId always
 // comes from the admin's own token, never from the request body, so an
@@ -38,6 +39,13 @@ export async function login(req: Request, res: Response) {
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return res.status(401).json({ error: "Invalid credentials" });
+
+    if (user.schoolId) {
+      const school = await School.findById(user.schoolId);
+      if (!school || !school.isActive) {
+        return res.status(403).json({ error: "This school's account has been deactivated" });
+      }
+    }
 
     const token = jwt.sign(
       { userId: user._id, schoolId: user.schoolId, role: user.role },

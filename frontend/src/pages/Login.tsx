@@ -22,7 +22,8 @@ export default function Login() {
       const res = await api.post("/auth/login", { email, password });
         login(res.data.token, res.data.user);
         const role = res.data.user.role;
-        navigate(role === "student" ? `/${role}/exams` : `/${role}/questions`);    } catch (err: any) {
+        if (role === "superadmin") navigate(`/${role}/schools`);
+        else navigate(role === "student" ? `/${role}/exams` : `/${role}/questions`);    } catch (err: any) {
       setError(err.response?.data?.error || "Couldn't log in. Check your details and try again.");
     } finally {
       setLoading(false);

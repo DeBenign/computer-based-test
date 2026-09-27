@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import AppLayout from "./components/AppLayout";
 import RequireRole from "./components/RequireRole";
+import RequireExactRole from "./components/RequireExactRole";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
@@ -11,7 +12,7 @@ import ExamList from "./pages/ExamList";
 import TestTaking from "./pages/TestTaking";
 import Results from "./pages/Results";
 import UserManagement from "./pages/UserManagement";
-import RequireExactRole from "./components/RequireExactRole";
+import SchoolManagement from "./pages/SchoolManagement";
 
 export default function App() {
   return (
@@ -23,6 +24,9 @@ export default function App() {
 
           <Route path="/:role" element={<RequireRole />}>
             <Route element={<AppLayout />}>
+              <Route element={<RequireExactRole allow={["superadmin"]} />}>
+                <Route path="schools" element={<SchoolManagement />} />
+              </Route>
               <Route element={<RequireExactRole allow={["admin"]} />}>
                 <Route path="setup" element={<Setup />} />
                 <Route path="users" element={<UserManagement />} />
@@ -33,7 +37,6 @@ export default function App() {
               <Route path="exams/:id/edit" element={<ExamBuilder />} />
               <Route path="exams/:id/take" element={<TestTaking />} />
               <Route path="results" element={<Results />} />
-              <Route path="users" element={<UserManagement />} />
             </Route>
           </Route>
 

@@ -8,6 +8,7 @@ import examRoutes from "./routes/examRoutes";
 import attemptRoutes from "./routes/attemptRoutes";
 import resultRoutes from "./routes/resultRoutes";
 import userRoutes from "./routes/userRoutes";
+import schoolRoutes from "./routes/schoolRoutes";
 import subjectRoutes from "./routes/subjectRoutes";
 import classRoutes from "./routes/classRoutes";
 import adminQuestionRoutes from "./routes/adminQuestionRoutes"; 
@@ -27,6 +28,8 @@ const v1 = express.Router();
 v1.use("/auth", authRoutes);
 
 // Admin: setup, account management, read-only oversight
+
+v1.use("/superadmin/schools", requireAuth, requireRole("superadmin"), schoolRoutes);
 v1.use("/admin/classes", requireAuth, requireRole("admin"), classRoutes);
 v1.use("/admin/subjects", requireAuth, requireRole("admin"), subjectRoutes);
 v1.use("/admin/users", requireAuth, requireRole("admin"), userRoutes);

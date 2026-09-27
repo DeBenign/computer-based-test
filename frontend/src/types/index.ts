@@ -14,7 +14,7 @@ export interface AppUser {
   _id: string;
   name: string;
   email: string;
-  role: "admin" | "teacher" | "student";
+  role: "superadmin" | "admin" | "teacher" | "student";
   classId?: string;
   subjectIds?: string[];
   createdAt: string;
