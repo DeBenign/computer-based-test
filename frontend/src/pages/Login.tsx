@@ -9,6 +9,7 @@ import PageShell from "../components/PageShell";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -20,11 +21,16 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { email, password });
-        login(res.data.token, res.data.user);
-        const role = res.data.user.role;
-        if (role === "superadmin") navigate(`/${role}/schools`);
-        else navigate(role === "student" ? `/${role}/exams` : `/${role}/questions`);    } catch (err: any) {
-      setError(err.response?.data?.error || "Couldn't log in. Check your details and try again.");
+      login(res.data.token, res.data.user);
+      const role = res.data.user.role;
+      if (role === "superadmin") navigate(`/${role}/schools`);
+      else navigate(role === "student" ? `/${role}/exams` : `/${role}/questions`);
+    } catch (err: any) {
+      if (!err.response) {
+        setError("Can't reach the server. Please try again in a moment.");
+      } else {
+        setError(err.response.data?.error || "Couldn't log in. Check your details and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -51,13 +57,18 @@ export default function Login() {
           </div>
           <div style={{ marginBottom: 16 }}>
             <label>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ width: "100%" }}
-            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{ width: "100%" }}
+              />
+              <button type="button" onClick={() => setShowPassword((v) => !v)} style={{ padding: "0 10px", fontSize: 12 }}>
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
           {error && <p style={{ color: "var(--text-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>}
           <PrimaryButton type="submit" disabled={loading} style={{ width: "100%" }}>

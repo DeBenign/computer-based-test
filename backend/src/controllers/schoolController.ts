@@ -36,13 +36,21 @@ export async function createSchool(req: AuthedRequest, res: Response) {
 
 export async function listSchools(_req: AuthedRequest, res: Response) {
   const schools = await School.find().sort({ createdAt: -1 });
-  const withCounts = await Promise.all(
+  const withDetails = await Promise.all(
     schools.map(async (s) => {
-      const adminCount = await User.countDocuments({ schoolId: s._id, role: "admin" });
-      return { id: s._id, name: s.name, address: s.address, isActive: s.isActive, adminCount };
+      const admins = await User.find({ schoolId: s._id, role: "admin" }).select("name email");
+      return {
+        id: s._id,
+        name: s.name,
+        address: s.address,
+        isActive: s.isActive,
+        createdAt: s.createdAt,
+        adminCount: admins.length,
+        admins: admins.map((a) => ({ name: a.name, email: a.email }))
+      };
     })
   );
-  res.json(withCounts);
+  res.json(withDetails);
 }
 
 export async function setSchoolActive(req: AuthedRequest, res: Response) {

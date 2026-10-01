@@ -8,7 +8,6 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
-
 const roleTone: Record<string, "accent" | "warning" | "success"> = {
   admin: "accent",
   teacher: "warning",
@@ -27,11 +26,13 @@ export default function UserManagement() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<"teacher" | "student">("student");
   const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   async function loadAll() {
     const [userRes, classRes, subRes] = await Promise.all([
@@ -55,6 +56,12 @@ export default function UserManagement() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (role === "student" && !classId) {
+      setError("Select a class before creating a student account.");
+      return;
+    }
+
     try {
       await api.post("/auth/register", {
         name,
@@ -71,6 +78,16 @@ export default function UserManagement() {
       await loadAll();
     } catch (err: any) {
       setError(err.response?.data?.error || "Couldn't create the account.");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this account? They'll lose access immediately. This can't be undone.")) return;
+    try {
+      await api.delete(`/users/${id}`);
+      await loadAll();
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Couldn't delete the account.");
     }
   }
 
@@ -113,7 +130,7 @@ export default function UserManagement() {
           <p style={{ marginBottom: 12 }}>
             Add at least one class and one subject in Setup before creating student or teacher accounts.
           </p>
-           <Link to={rolePath("/setup")}>
+          <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
         </Card>
@@ -143,13 +160,25 @@ export default function UserManagement() {
               </div>
               <div style={{ flex: 1 }}>
                 <label>Temporary password</label>
-                <input value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%" }} />
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    style={{ width: "100%" }}
+                  />
+                  <button type="button" onClick={() => setShowPassword((v) => !v)} style={{ padding: "0 10px", fontSize: 12 }}>
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
               </div>
             </div>
             {role === "student" && (
               <div style={{ marginBottom: 10 }}>
                 <label>Class</label>
-                <select value={classId} onChange={(e) => setClassId(e.target.value)} style={{ width: "100%" }}>
+                <select value={classId} onChange={(e) => setClassId(e.target.value)} required style={{ width: "100%" }}>
+                  <option value="">-- Select a class --</option>
                   {classes.map((c) => (
                     <option key={c._id} value={c._id}>
                       {c.name} (id:{idSuffix(c._id)})
@@ -181,9 +210,13 @@ export default function UserManagement() {
       {users.map((u) => {
         const cls = u.classId ? classById[u.classId] : undefined;
         const subj = u.subjectIds?.[0] ? subjectById[u.subjectIds[0]] : undefined;
+        const isExpanded = expandedId === u._id;
         return (
           <Card key={u._id} style={{ marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
+              onClick={() => setExpandedId(isExpanded ? null : u._id)}
+            >
               <div>
                 <p style={{ fontWeight: 500, marginBottom: 2 }}>{u.name}</p>
                 <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 2 }}>{u.email}</p>
@@ -198,8 +231,29 @@ export default function UserManagement() {
                   </p>
                 )}
               </div>
-              <Badge tone={roleTone[u.role]}>{u.role}</Badge>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Badge tone={roleTone[u.role]}>{u.role}</Badge>
+                {u.role !== "admin" && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(u._id);
+                    }}
+                    style={{ padding: "3px 10px", fontSize: 12 }}
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
+
+            {isExpanded && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "0.5px solid var(--border)", fontSize: 12, color: "var(--text-secondary)" }}>
+                <p>User ID: {u._id}</p>
+                <p>Created: {new Date(u.createdAt).toLocaleString()}</p>
+              </div>
+            )}
           </Card>
         );
       })}
