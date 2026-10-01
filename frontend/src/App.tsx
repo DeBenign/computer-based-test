@@ -31,11 +31,15 @@ export default function App() {
                 <Route path="setup" element={<Setup />} />
                 <Route path="users" element={<UserManagement />} />
               </Route>
-              <Route path="questions" element={<QuestionBank />} />
+              <Route element={<RequireExactRole allow={["admin", "teacher"]} />}>
+                <Route path="questions" element={<QuestionBank />} />
+                <Route path="exams/new" element={<ExamBuilder />} />
+                <Route path="exams/:id/edit" element={<ExamBuilder />} />
+              </Route>
+              <Route element={<RequireExactRole allow={["student"]} />}>
+                <Route path="exams/:id/take" element={<TestTaking />} />
+              </Route>
               <Route path="exams" element={<ExamList />} />
-              <Route path="exams/new" element={<ExamBuilder />} />
-              <Route path="exams/:id/edit" element={<ExamBuilder />} />
-              <Route path="exams/:id/take" element={<TestTaking />} />
               <Route path="results" element={<Results />} />
             </Route>
           </Route>

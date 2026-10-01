@@ -9,7 +9,6 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
-
 function statusInfo(exam: Exam): { label: string; tone: "success" | "warning" | "neutral" } {
   const now = Date.now();
   const start = new Date(exam.startTime).getTime();
@@ -32,20 +31,29 @@ export default function ExamList() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const { user } = useAuth();
   const rolePath = useRolePath();
+  const isStudent = user?.role === "student";
+  const canManage = user?.role === "teacher";
 
   async function loadAll() {
-    const [examRes, classRes, subRes] = await Promise.all([
-      api.get("/exams"),
-      api.get("/classes"),
-      api.get("/subjects")
-    ]);
+    // Students have no /student/classes or /student/subjects route on the
+    // backend -- that lookup is only ever used for the "Subject · Class"
+    // caption line teachers/admins see, which students don't render at all.
+    // Fetching it unconditionally for every role meant a student's request
+    // always 404'd, Promise.all rejected before setExams() ever ran, and
+    // the page silently showed "No exams yet" even when real exams existed.
+    const examRes = await api.get("/exams");
     setExams(examRes.data);
+
+    if (isStudent) return;
+
+    const [classRes, subRes] = await Promise.all([api.get("/classes"), api.get("/subjects")]);
     setClasses(classRes.data);
     setSubjects(subRes.data);
   }
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleDelete(id: string) {
@@ -54,8 +62,6 @@ export default function ExamList() {
     await loadAll();
   }
 
-  const isStudent = user?.role === "student";
-  const canManage = user?.role === "teacher";
   const classById = Object.fromEntries(classes.map((c) => [c._id, c]));
   const subjectById = Object.fromEntries(subjects.map((s) => [s._id, s]));
 
@@ -63,11 +69,11 @@ export default function ExamList() {
     <PageShell maxWidth={640}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h1 style={{ marginBottom: 0 }}>{isStudent ? "My exams" : "Exams"}</h1>
-          {canManage && (
-           <Link to={rolePath("/exams/new")}>
+        {canManage && (
+          <Link to={rolePath("/exams/new")}>
             <PrimaryButton type="button">+ New exam</PrimaryButton>
           </Link>
-          )}
+        )}
       </div>
 
       {exams.length === 0 && <p style={{ color: "var(--text-secondary)" }}>No exams yet.</p>}
@@ -106,14 +112,14 @@ export default function ExamList() {
               </Link>
             )}
 
-           {canManage && isDraft && (
-            <div style={{ display: "flex", gap: 8 }}>
-              <Link to={rolePath(`/exams/${exam._id}/edit`)}>
-                <button type="button">Continue setup</button>
-              </Link>
-              <button type="button" onClick={() => handleDelete(exam._id)}>Delete</button>
-            </div>
-          )}
+            {canManage && isDraft && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <Link to={rolePath(`/exams/${exam._id}/edit`)}>
+                  <button type="button">Continue setup</button>
+                </Link>
+                <button type="button" onClick={() => handleDelete(exam._id)}>Delete</button>
+              </div>
+            )}
           </Card>
         );
       })}

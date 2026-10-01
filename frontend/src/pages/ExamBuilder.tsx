@@ -32,7 +32,6 @@ export default function ExamBuilder() {
   const [examId, setExamId] = useState<string | null>(existingExamId || null);
   const [loading, setLoading] = useState(!!existingExamId);
   const navigate = useNavigate();
-  
 
   useEffect(() => {
     (async () => {
@@ -67,8 +66,14 @@ export default function ExamBuilder() {
         classId,
         title,
         duration,
-        startTime,
-        endTime,
+        // datetime-local gives a bare "2026-10-01T01:38" with no timezone,
+        // which gets misread as UTC once it reaches a server running in a
+        // different timezone than the user. Converting here, in the
+        // browser, is the only place that actually knows the user's real
+        // local offset -- toISOString() turns it into one unambiguous
+        // instant that displays correctly everywhere downstream.
+        startTime: new Date(startTime).toISOString(),
+        endTime: new Date(endTime).toISOString(),
         randomizeQuestions: true,
         randomizeOptions: true,
         lockdownRequired: true
@@ -100,16 +105,16 @@ export default function ExamBuilder() {
     }
   }
 
-      async function handlePublish() {
-        if (!examId) return;
-        try {
-          await api.post(`/exams/${examId}/publish`);
-          setStatus("Exam published and scheduled.");
-          navigate(rolePath("/exams"));
-        } catch (err: any) {
-          setStatus(err.response?.data?.error || "Couldn't publish the exam.");
-        }
+  async function handlePublish() {
+    if (!examId) return;
+    try {
+      await api.post(`/exams/${examId}/publish`);
+      setStatus("Exam published and scheduled.");
+      navigate(rolePath("/exams"));
+    } catch (err: any) {
+      setStatus(err.response?.data?.error || "Couldn't publish the exam.");
     }
+  }
 
   if (loading) {
     return (
@@ -125,7 +130,7 @@ export default function ExamBuilder() {
         <h1>New exam</h1>
         <Card>
           <p style={{ marginBottom: 12 }}>You need at least one class and one subject before creating an exam. Ask your school admin to add class and subject for you first.</p>
-            <Link to={rolePath("/setup")}>
+          <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
         </Card>
