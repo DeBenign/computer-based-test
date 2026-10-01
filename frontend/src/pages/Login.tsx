@@ -41,7 +41,7 @@ export default function Login() {
       <Card>
         <h2 style={{ textAlign: "center", marginBottom: 4 }}>Sign in</h2>
         <p style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: 13, marginBottom: 20 }}>
-          De-Benign School CBT
+          School CBT
         </p>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 14 }}>
