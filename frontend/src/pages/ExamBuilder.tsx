@@ -25,6 +25,7 @@ export default function ExamBuilder() {
   const [duration, setDuration] = useState(30);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const [lockdownRequired, setLockdownRequired] = useState(true);
   const [topics, setTopics] = useState("");
   const [questionCount, setQuestionCount] = useState(20);
   const [attachedCount, setAttachedCount] = useState(0);
@@ -48,6 +49,7 @@ export default function ExamBuilder() {
         setDuration(exam.duration);
         setStartTime(toLocalInputValue(exam.startTime));
         setEndTime(toLocalInputValue(exam.endTime));
+        setLockdownRequired(!!exam.lockdownRequired);
         setAttachedCount(exam.questionIds?.length || 0);
         setLoading(false);
       } else {
@@ -76,7 +78,7 @@ export default function ExamBuilder() {
         endTime: new Date(endTime).toISOString(),
         randomizeQuestions: true,
         randomizeOptions: true,
-        lockdownRequired: true
+        lockdownRequired
       });
       setExamId(res.data._id);
       setStatus("Draft created. Now add questions below.");
@@ -181,6 +183,18 @@ export default function ExamBuilder() {
               <label>End</label>
               <input type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} required disabled={!!examId} style={{ width: "100%" }} />
             </div>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={lockdownRequired}
+                onChange={(e) => setLockdownRequired(e.target.checked)}
+                disabled={!!examId}
+              />
+              Require lockdown mode (fullscreen enforced; exam ends automatically after repeated tab-switching or exiting fullscreen)
+            </label>
           </div>
 
           {!examId && <PrimaryButton type="submit">Create draft</PrimaryButton>}

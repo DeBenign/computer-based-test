@@ -7,7 +7,6 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
-
 interface AttemptQuestion {
   _id: string;
   questionText: string;
@@ -26,6 +25,7 @@ export default function TestTaking() {
   const rolePath = useRolePath();
 
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [lockdownRequired, setLockdownRequired] = useState(false);
   const [questions, setQuestions] = useState<AttemptQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
@@ -33,29 +33,36 @@ export default function TestTaking() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [violationCount, setViolationCount] = useState(0);
 
   const pendingRef = useRef<Map<string, PendingAnswer>>(new Map());
+  const attemptIdRef = useRef<string | null>(null);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    attemptIdRef.current = attemptId;
+  }, [attemptId]);
+
+  useEffect(() => {
+    submittedRef.current = submitted;
+  }, [submitted]);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await api.post(`/attempts/${examId}/start`);
-        const payload = res.data;
-        if (payload.questions) {
-          setAttemptId(payload.attempt._id);
-          setQuestions(payload.questions);
-          const end = new Date(payload.attempt.serverEndTime).getTime();
-          setRemainingMs(end - Date.now());
-        } else {
-          setAttemptId(payload._id);
-          const end = new Date(payload.serverEndTime).getTime();
-          setRemainingMs(end - Date.now());
-          const restored: Record<string, string> = {};
-          for (const a of payload.answers) {
-            if (a.selectedOption) restored[a.questionId] = a.selectedOption;
-          }
-          setAnswers(restored);
+        const { attempt, questions: qs, lockdownRequired: lockdown } = res.data;
+        setAttemptId(attempt._id);
+        setQuestions(qs);
+        setLockdownRequired(!!lockdown);
+        const end = new Date(attempt.serverEndTime).getTime();
+        setRemainingMs(end - Date.now());
+
+        const restored: Record<string, string> = {};
+        for (const a of attempt.answers || []) {
+          if (a.selectedOption) restored[a.questionId] = a.selectedOption;
         }
+        setAnswers(restored);
       } catch (err: any) {
         setError(err.response?.data?.error || "Couldn't start the exam.");
       } finally {
@@ -64,6 +71,84 @@ export default function TestTaking() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId]);
+
+  async function reportFlag(type: string, meta?: string) {
+    const id = attemptIdRef.current;
+    if (!id || submittedRef.current) return;
+    try {
+      const res = await api.post(`/attempts/${id}/flag`, { type, meta });
+      setViolationCount(res.data.violationCount || 0);
+      if (res.data.terminated) {
+        submittedRef.current = true;
+        setSubmitted(true);
+        navigate(rolePath("/exams"), {
+          state: { message: "Your exam was ended early due to repeated integrity violations (tab switching, exiting fullscreen, or similar)." }
+        });
+      }
+    } catch {
+      // best-effort -- don't block the student on a logging failure
+    }
+  }
+
+  // Tab-switch / window-blur detection -- active for every exam, not just
+  // lockdown ones, so there's always a record even if it doesn't terminate.
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (document.hidden) reportFlag("tab-switch");
+    }
+    function onBlur() {
+      reportFlag("window-blur");
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fullscreen enforcement, only for exams the teacher marked as lockdown-required.
+  useEffect(() => {
+    if (!lockdownRequired || loading) return;
+
+    const el = document.documentElement as any;
+    const request = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (request) request.call(el).catch(() => {});
+
+    function onFullscreenChange() {
+      if (!document.fullscreenElement) {
+        reportFlag("fullscreen-exit");
+      }
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lockdownRequired, loading]);
+
+  // Block copy/paste, right-click, and common devtools shortcuts during the exam.
+  useEffect(() => {
+    function onContextMenu(e: MouseEvent) {
+      e.preventDefault();
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      const blockedKey =
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key)) ||
+        (e.ctrlKey && ["c", "v", "u"].includes(e.key.toLowerCase()));
+      if (blockedKey) {
+        e.preventDefault();
+        reportFlag("blocked-shortcut", e.key);
+      }
+    }
+    document.addEventListener("contextmenu", onContextMenu);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("contextmenu", onContextMenu);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (remainingMs === null || submitted) return;
@@ -177,6 +262,12 @@ export default function TestTaking() {
             {`${minutes}:${seconds.toString().padStart(2, "0")}`}
           </Badge>
         </div>
+
+        {lockdownRequired && violationCount > 0 && (
+          <p style={{ color: "var(--text-danger)", fontSize: 13, marginBottom: 12 }}>
+            Warning: {violationCount}/3 integrity violations recorded. Your exam will end automatically if this continues.
+          </p>
+        )}
 
         {error && <p style={{ color: "var(--text-warning)", fontSize: 13, marginBottom: 12 }}>{error}</p>}
 
