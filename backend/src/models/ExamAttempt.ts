@@ -8,6 +8,8 @@ export interface IAnswer {
   answerText?: string;
   clientTimestamp: number;
   serverReceivedAt?: Date;
+  marksAwarded?: number; // theory answers only -- set by a teacher via grading
+  gradedAt?: Date;
 }
 
 export interface IFlaggedEvent {
@@ -19,15 +21,16 @@ export interface IFlaggedEvent {
 export interface IExamAttempt extends Document {
   examId: Types.ObjectId;
   studentId: Types.ObjectId;
-  questionOrder: Types.ObjectId[]; // frozen at start, for randomization consistency
+  questionOrder: Types.ObjectId[];
   startedAt: Date;
-  serverEndTime: Date; // authoritative deadline
+  serverEndTime: Date;
   submittedAt?: Date;
   status: AttemptStatus;
   answers: IAnswer[];
   flaggedEvents: IFlaggedEvent[];
   score?: number;
-  gradedBy?: Types.ObjectId; // for theory questions, phase 2
+  needsGrading: boolean; // true if this attempt has an answered theory question not yet graded
+  gradedBy?: Types.ObjectId;
 }
 
 const answerSchema = new Schema<IAnswer>(
@@ -36,7 +39,9 @@ const answerSchema = new Schema<IAnswer>(
     selectedOption: String,
     answerText: String,
     clientTimestamp: { type: Number, required: true },
-    serverReceivedAt: Date
+    serverReceivedAt: Date,
+    marksAwarded: Number,
+    gradedAt: Date
   },
   { _id: false }
 );
@@ -65,6 +70,7 @@ const examAttemptSchema = new Schema<IExamAttempt>({
   answers: [answerSchema],
   flaggedEvents: [flaggedEventSchema],
   score: Number,
+  needsGrading: { type: Boolean, default: false },
   gradedBy: { type: Schema.Types.ObjectId, ref: "User" }
 });
 

@@ -3,16 +3,26 @@ import { AuthedRequest } from "../middleware/auth";
 import Question from "../models/Question";
 
 export async function createQuestion(req: AuthedRequest, res: Response) {
-  const { subjectId, classId, topic, difficulty, questionText, options, marks, curriculumTag } = req.body;
+  const { subjectId, classId, topic, difficulty, type, questionText, options, correctAnswerText, marks, curriculumTag } = req.body;
+
+  const questionType = type === "theory" ? "theory" : "mcq";
+
+  if (questionType === "mcq") {
+    if (!Array.isArray(options) || options.length < 2 || !options.some((o: any) => o.isCorrect)) {
+      return res.status(400).json({ error: "MCQ questions need at least two options with one marked correct." });
+    }
+  }
+
   const question = await Question.create({
     schoolId: req.user!.schoolId,
     subjectId,
     classId,
     topic,
-    type: "mcq",
+    type: questionType,
     difficulty,
     questionText,
-    options,
+    options: questionType === "mcq" ? options : [],
+    correctAnswerText: questionType === "theory" ? correctAnswerText : undefined,
     marks,
     curriculumTag,
     createdBy: req.user!.userId
@@ -21,12 +31,13 @@ export async function createQuestion(req: AuthedRequest, res: Response) {
 }
 
 export async function listQuestions(req: AuthedRequest, res: Response) {
-  const { subjectId, classId, topic, difficulty } = req.query;
+  const { subjectId, classId, topic, difficulty, type } = req.query;
   const filter: Record<string, unknown> = { schoolId: req.user!.schoolId };
   if (subjectId) filter.subjectId = subjectId;
   if (classId) filter.classId = classId;
   if (topic) filter.topic = topic;
   if (difficulty) filter.difficulty = difficulty;
+  if (type) filter.type = type;
 
   const questions = await Question.find(filter).sort({ createdAt: -1 });
   res.json(questions);

@@ -36,15 +36,20 @@ export async function getMyResult(req: AuthedRequest, res: Response) {
     return res.status(400).json({ error: "Exam not yet submitted" });
   }
 
+
   res.json({
     examId: attempt.examId,
     status: attempt.status,
     score: attempt.score,
+    needsGrading: attempt.needsGrading,
     submittedAt: attempt.submittedAt
   });
 }
 
 // Teacher/admin: every student's result for one exam, plus class average.
+// Includes "flagged" attempts (ended early for integrity violations) --
+// these were previously excluded here entirely, so a cheating student's
+// result just silently vanished from the teacher's view.
 export async function getExamResults(req: AuthedRequest, res: Response) {
   const exam = await Exam.findOne({ _id: req.params.examId, schoolId: req.user!.schoolId });
   if (!exam) return res.status(404).json({ error: "Exam not found" });
@@ -58,7 +63,7 @@ export async function getExamResults(req: AuthedRequest, res: Response) {
 
   const attempts = await ExamAttempt.find({
     examId: exam._id,
-    status: { $in: ["submitted", "auto-submitted"] }
+    status: { $in: ["submitted", "auto-submitted", "flagged"] }
   }).populate("studentId", "name email");
 
   const questions = await Question.find({ _id: { $in: exam.questionIds } });
@@ -70,7 +75,10 @@ export async function getExamResults(req: AuthedRequest, res: Response) {
     score: a.score ?? 0,
     totalMarks,
     status: a.status,
-    submittedAt: a.submittedAt
+    submittedAt: a.submittedAt,
+    needsGrading: a.needsGrading,
+    flagCount: a.flaggedEvents.length,
+    flaggedEvents: a.flaggedEvents.map((e) => ({ type: e.type, timestamp: e.timestamp }))
   }));
 
   const average = rows.length > 0 ? rows.reduce((sum, r) => sum + r.score, 0) / rows.length : 0;
@@ -85,7 +93,8 @@ export async function getExamResults(req: AuthedRequest, res: Response) {
   });
 }
 
-// Teacher/admin only: CSV download of one exam's results -- same 1-hour gate.
+// Teacher/admin only: CSV download of one exam's results -- same 1-hour gate,
+// same status fix as above.
 export async function exportExamResultsCsv(req: AuthedRequest, res: Response) {
   const exam = await Exam.findOne({ _id: req.params.examId, schoolId: req.user!.schoolId });
   if (!exam) return res.status(404).json({ error: "Exam not found" });
@@ -99,14 +108,14 @@ export async function exportExamResultsCsv(req: AuthedRequest, res: Response) {
 
   const attempts = await ExamAttempt.find({
     examId: exam._id,
-    status: { $in: ["submitted", "auto-submitted"] }
+    status: { $in: ["submitted", "auto-submitted", "flagged"] }
   }).populate("studentId", "name email");
 
   const questions = await Question.find({ _id: { $in: exam.questionIds } });
   const totalMarks = questions.reduce((sum, q) => sum + q.marks, 0);
 
   const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
-  const lines = [["Student Name", "Email", "Score", "Total Marks", "Status", "Submitted At"].join(",")];
+  const lines = [["Student Name", "Email", "Score", "Total Marks", "Status", "Flags", "Submitted At"].join(",")];
 
   for (const a of attempts) {
     const student: any = a.studentId;
@@ -117,6 +126,7 @@ export async function exportExamResultsCsv(req: AuthedRequest, res: Response) {
         a.score ?? 0,
         totalMarks,
         a.status,
+        a.flaggedEvents.length,
         a.submittedAt ? new Date(a.submittedAt).toISOString() : ""
       ].join(",")
     );
@@ -136,7 +146,7 @@ export async function getStudentSummary(req: AuthedRequest, res: Response) {
 
   const attempts = await ExamAttempt.find({
     studentId: student._id,
-    status: { $in: ["submitted", "auto-submitted"] }
+    status: { $in: ["submitted", "auto-submitted", "flagged"] }
   }).populate("examId", "title subjectId endTime");
 
   const results = attempts

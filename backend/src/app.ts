@@ -11,6 +11,7 @@ import classRoutes from "./routes/classRoutes";
 import adminQuestionRoutes from "./routes/adminQuestionRoutes";
 import adminExamRoutes from "./routes/adminExamRoutes";
 import schoolRoutes from "./routes/schoolRoutes";
+import gradingRoutes from "./routes/gradingRoutes"
 import { requireAuth } from "./middleware/auth";
 import { requireRole } from "./middleware/requireRole";
 import { errorHandler } from "./middleware/errorHandler";
@@ -44,6 +45,7 @@ v1.use("/teacher/subjects", requireAuth, requireRole("teacher"), subjectRoutes);
 v1.use("/teacher/questions", requireAuth, requireRole("teacher"), questionRoutes);
 v1.use("/teacher/exams", requireAuth, requireRole("teacher"), examRoutes);
 v1.use("/teacher/results", requireAuth, requireRole("teacher"), resultRoutes);
+v1.use("/teacher/grading", requireAuth, requireRole("teacher"), gradingRoutes);
 
 v1.use("/student/exams", requireAuth, requireRole("student"), examRoutes);
 v1.use("/student/attempts", requireAuth, requireRole("student"), attemptRoutes);

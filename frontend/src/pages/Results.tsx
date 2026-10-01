@@ -3,7 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import Card from "../components/Card";
+import Badge from "../components/Badge";
 import PageShell from "../components/PageShell";
+
+interface FlaggedEvent {
+  type: string;
+  timestamp: number;
+}
 
 interface StudentRow {
   studentId: string;
@@ -12,6 +18,8 @@ interface StudentRow {
   totalMarks: number;
   status: string;
   submittedAt: string;
+  flagCount: number;
+  flaggedEvents: FlaggedEvent[];
 }
 
 interface ExamResults {
@@ -38,6 +46,7 @@ export default function Results() {
   const [error, setError] = useState<string | null>(null);
   const [unlockAt, setUnlockAt] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!examId) return;
@@ -136,24 +145,50 @@ export default function Results() {
             {" · "}{classResults.submittedCount} submission{classResults.submittedCount === 1 ? "" : "s"}
           </p>
           <Card>
-            <table>
+            <table style={{ width: "100%" }}>
               <thead>
                 <tr>
                   <th>Student</th>
                   <th>Score</th>
                   <th>Status</th>
+                  <th>Flags</th>
                   <th>Submitted</th>
                 </tr>
               </thead>
               <tbody>
-                {classResults.results.map((r) => (
-                  <tr key={r.studentId}>
-                    <td>{r.studentName}</td>
-                    <td>{r.score} / {r.totalMarks}</td>
-                    <td>{r.status}</td>
-                    <td>{new Date(r.submittedAt).toLocaleString()}</td>
-                  </tr>
-                ))}
+                {classResults.results.map((r) => {
+                  const isExpanded = expandedId === r.studentId;
+                  return (
+                    <>
+                      <tr
+                        key={r.studentId}
+                        style={{ cursor: r.flagCount > 0 ? "pointer" : "default" }}
+                        onClick={() => r.flagCount > 0 && setExpandedId(isExpanded ? null : r.studentId)}
+                      >
+                        <td>{r.studentName}</td>
+                        <td>{r.score} / {r.totalMarks}</td>
+                        <td>
+                          {r.status === "flagged" ? <Badge tone="danger">flagged</Badge> : r.status}
+                        </td>
+                        <td>
+                          {r.flagCount > 0 ? <Badge tone="warning">{r.flagCount}</Badge> : "—"}
+                        </td>
+                        <td>{new Date(r.submittedAt).toLocaleString()}</td>
+                      </tr>
+                      {isExpanded && (
+                        <tr key={`${r.studentId}-detail`}>
+                          <td colSpan={5} style={{ fontSize: 12, color: "var(--text-secondary)", paddingTop: 0 }}>
+                            {r.flaggedEvents.map((e, i) => (
+                              <div key={i}>
+                                {e.type} — {new Date(e.timestamp).toLocaleTimeString()}
+                              </div>
+                            ))}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           </Card>
