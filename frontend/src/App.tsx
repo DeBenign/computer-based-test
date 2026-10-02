@@ -15,6 +15,9 @@ import Results from "./pages/Results";
 import GradingQueue from "./pages/GradingQueue";
 import UserManagement from "./pages/UserManagement";
 import SchoolManagement from "./pages/SchoolManagement";
+import ChangePassword from "./pages/ChangePassword";
+import Billing from "./pages/Billing";
+
 
 export default function App() {
   return (
@@ -33,6 +36,7 @@ export default function App() {
                 <Route element={<RequireExactRole allow={["admin"]} />}>
                   <Route path="setup" element={<Setup />} />
                   <Route path="users" element={<UserManagement />} />
+                  <Route path="billing" element={<Billing />} />
                 </Route>
                 <Route element={<RequireExactRole allow={["admin", "teacher"]} />}>
                   <Route path="questions" element={<QuestionBank />} />
@@ -47,6 +51,7 @@ export default function App() {
                 </Route>
                 <Route path="exams" element={<ExamList />} />
                 <Route path="results" element={<Results />} />
+                <Route path="change-password" element={<ChangePassword />} />
               </Route>
             </Route>
 

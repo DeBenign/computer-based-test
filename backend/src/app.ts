@@ -11,9 +11,11 @@ import classRoutes from "./routes/classRoutes";
 import adminQuestionRoutes from "./routes/adminQuestionRoutes";
 import adminExamRoutes from "./routes/adminExamRoutes";
 import schoolRoutes from "./routes/schoolRoutes";
-import gradingRoutes from "./routes/gradingRoutes"
+import gradingRoutes from "./routes/gradingRoutes";
+import billingRoutes from "./routes/billingRoutes";
 import { requireAuth } from "./middleware/auth";
 import { requireRole } from "./middleware/requireRole";
+import { requireActiveSubscription } from "./middleware/requireActiveSubscription";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -34,18 +36,19 @@ v1.use("/auth", authRoutes);
 
 v1.use("/superadmin/schools", requireAuth, requireRole("superadmin"), schoolRoutes);
 
-v1.use("/admin/classes", requireAuth, requireRole("admin"), classRoutes);
-v1.use("/admin/subjects", requireAuth, requireRole("admin"), subjectRoutes);
-v1.use("/admin/users", requireAuth, requireRole("admin"), userRoutes);
-v1.use("/admin/questions", requireAuth, requireRole("admin"), adminQuestionRoutes);
-v1.use("/admin/exams", requireAuth, requireRole("admin"), adminExamRoutes);
+v1.use("/admin/billing", requireAuth, requireRole("admin"), billingRoutes); // never gated -- this is the way out
+v1.use("/admin/classes", requireAuth, requireRole("admin"), requireActiveSubscription, classRoutes);
+v1.use("/admin/subjects", requireAuth, requireRole("admin"), requireActiveSubscription, subjectRoutes);
+v1.use("/admin/users", requireAuth, requireRole("admin"), requireActiveSubscription, userRoutes);
+v1.use("/admin/questions", requireAuth, requireRole("admin"), requireActiveSubscription, adminQuestionRoutes);
+v1.use("/admin/exams", requireAuth, requireRole("admin"), requireActiveSubscription, adminExamRoutes);
 
-v1.use("/teacher/classes", requireAuth, requireRole("teacher"), classRoutes);
-v1.use("/teacher/subjects", requireAuth, requireRole("teacher"), subjectRoutes);
-v1.use("/teacher/questions", requireAuth, requireRole("teacher"), questionRoutes);
-v1.use("/teacher/exams", requireAuth, requireRole("teacher"), examRoutes);
-v1.use("/teacher/results", requireAuth, requireRole("teacher"), resultRoutes);
-v1.use("/teacher/grading", requireAuth, requireRole("teacher"), gradingRoutes);
+v1.use("/teacher/classes", requireAuth, requireRole("teacher"), requireActiveSubscription, classRoutes);
+v1.use("/teacher/subjects", requireAuth, requireRole("teacher"), requireActiveSubscription, subjectRoutes);
+v1.use("/teacher/questions", requireAuth, requireRole("teacher"), requireActiveSubscription, questionRoutes);
+v1.use("/teacher/exams", requireAuth, requireRole("teacher"), requireActiveSubscription, examRoutes);
+v1.use("/teacher/results", requireAuth, requireRole("teacher"), requireActiveSubscription, resultRoutes);
+v1.use("/teacher/grading", requireAuth, requireRole("teacher"), requireActiveSubscription, gradingRoutes);
 
 v1.use("/student/exams", requireAuth, requireRole("student"), examRoutes);
 v1.use("/student/attempts", requireAuth, requireRole("student"), attemptRoutes);

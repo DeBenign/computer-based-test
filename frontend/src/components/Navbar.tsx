@@ -34,6 +34,10 @@ export default function Navbar() {
         {user?.role === "admin" && (
           <Link to={rolePath("/users")} style={{ color: "var(--text-secondary)" }}>Users</Link>
         )}
+        {user?.role === "admin" && (
+          <Link to={rolePath("/billing")} style={{ color: "var(--text-secondary)" }}>Billing</Link>
+        )}
+        <Link to={rolePath("/change-password")} style={{ color: "var(--text-secondary)" }}>Change password</Link>
         <button onClick={handleLogout} style={{ padding: "6px 14px" }}>Log out</button>
       </div>
     </nav>

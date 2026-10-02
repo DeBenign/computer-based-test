@@ -45,6 +45,14 @@ export async function login(req: Request, res: Response) {
       if (!school || !school.isActive) {
         return res.status(403).json({ error: "This school's account has been deactivated" });
       }
+
+      const now = Date.now();
+      const trialActive = school.trialEndsAt.getTime() > now;
+      const paidActive = !!school.subscriptionPaidUntil && school.subscriptionPaidUntil.getTime() > now;
+
+      if (!trialActive && !paidActive && user.role !== "admin") {
+        return res.status(403).json({ error: "This school's free trial has ended. Ask your school admin to renew access." });
+      }
     }
 
     const token = jwt.sign(
@@ -57,4 +65,24 @@ export async function login(req: Request, res: Response) {
   } catch (err) {
     return res.status(500).json({ error: "Login failed" });
   }
+}
+
+// Any logged-in role changes their own password, proving they know the
+// current one. This is the only password-change path available to admin
+// and superadmin accounts, since resetUserPassword deliberately excludes them.
+export async function changeOwnPassword(req: AuthedRequest, res: Response) {
+  const { currentPassword, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 4) {
+    return res.status(400).json({ error: "New password must be at least 4 characters." });
+  }
+
+  const user = await User.findById(req.user!.userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) return res.status(401).json({ error: "Current password is incorrect." });
+
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.save();
+  res.json({ message: "Password changed." });
 }

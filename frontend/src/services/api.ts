@@ -10,7 +10,6 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Auth routes aren't role-scoped -- leave them alone.
   const isAuthCall = config.url?.startsWith("/auth");
   const role = localStorage.getItem("cbt_role");
 
@@ -20,5 +19,19 @@ api.interceptors.request.use((config) => {
 
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 402) {
+      const role = localStorage.getItem("cbt_role");
+      const billingPath = `/${role}/billing`;
+      if (window.location.pathname !== billingPath) {
+        window.location.href = billingPath;
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

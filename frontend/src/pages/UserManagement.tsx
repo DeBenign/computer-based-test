@@ -35,6 +35,8 @@ export default function UserManagement() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [resetDrafts, setResetDrafts] = useState<Record<string, string>>({});
+  const [resetMessages, setResetMessages] = useState<Record<string, string>>({});
 
   async function loadAll() {
     const [userRes, classRes, subRes] = await Promise.all([
@@ -91,6 +93,21 @@ export default function UserManagement() {
       await loadAll();
     } catch (err: any) {
       setError(err.response?.data?.error || "Couldn't delete the account.");
+    }
+  }
+
+  async function handleResetPassword(id: string) {
+    const newPassword = resetDrafts[id];
+    if (!newPassword || newPassword.length < 4) {
+      setResetMessages((prev) => ({ ...prev, [id]: "Enter at least 4 characters." }));
+      return;
+    }
+    try {
+      const res = await api.post(`/users/${id}/reset-password`, { newPassword });
+      setResetMessages((prev) => ({ ...prev, [id]: res.data.message }));
+      setResetDrafts((prev) => ({ ...prev, [id]: "" }));
+    } catch (err: any) {
+      setResetMessages((prev) => ({ ...prev, [id]: err.response?.data?.error || "Couldn't reset the password." }));
     }
   }
 
@@ -255,6 +272,27 @@ export default function UserManagement() {
               <div style={{ marginTop: 10, paddingTop: 10, borderTop: "0.5px solid var(--border)", fontSize: 12, color: "var(--text-secondary)" }}>
                 <p>User ID: {u._id}</p>
                 <p>Created: {new Date(u.createdAt).toLocaleString()}</p>
+
+                {u.role !== "admin" && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: "0.5px solid var(--border)" }}>
+                    <p style={{ fontWeight: 500, marginBottom: 6 }}>Reset password</p>
+                    <div style={{ display: "flex", gap: 6 }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        placeholder="New temporary password"
+                        value={resetDrafts[u._id] || ""}
+                        onChange={(e) => setResetDrafts((prev) => ({ ...prev, [u._id]: e.target.value }))}
+                        style={{ flex: 1 }}
+                      />
+                      <button type="button" onClick={() => handleResetPassword(u._id)} style={{ padding: "3px 10px", fontSize: 12 }}>
+                        Reset
+                      </button>
+                    </div>
+                    {resetMessages[u._id] && (
+                      <p style={{ marginTop: 6, marginBottom: 0 }}>{resetMessages[u._id]}</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </Card>

@@ -2,13 +2,10 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { requireRole } from "../middleware/requireRole";
 import { asyncHandler } from "../middleware/asyncHandler";
-import { listUsers, deleteUser, resetUserPassword } from "../controllers/userController";
+import { getBillingStatus } from "../controllers/schoolController";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin"));
-
-router.get("/", asyncHandler(listUsers));
-router.delete("/:id", asyncHandler(deleteUser));
-router.post("/:id/reset-password", asyncHandler(resetUserPassword));
+router.get("/status", asyncHandler(getBillingStatus));
 
 export default router;
