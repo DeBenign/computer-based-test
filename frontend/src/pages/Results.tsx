@@ -6,6 +6,7 @@ import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
+import Spinner from "../components/Spinner";
 
 interface FlaggedEvent {
   type: string;
@@ -133,7 +134,7 @@ export default function Results() {
             <p style={{ marginBottom: 0 }}><strong>Submitted:</strong> {new Date(myResult.submittedAt).toLocaleString()}</p>
           </Card>
         ) : (
-          <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+          <p style={{ color: "var(--text-secondary)", display: "flex", alignItems: "center" }}><Spinner />Loading exam…</p>
         )}
       </PageShell>
     );
@@ -163,7 +164,7 @@ export default function Results() {
           <Card>
             <table style={{ width: "100%" }}>
               <thead>
-                <tr>
+                <tr >
                   <th>Student</th>
                   <th>Score</th>
                   <th>Status</th>
@@ -177,6 +178,7 @@ export default function Results() {
                   return (
                     <Fragment key={r.studentId}>
                       <tr
+                        data-clickable={r.flagCount > 0}
                         style={{ cursor: r.flagCount > 0 ? "pointer" : "default" }}
                         onClick={() => r.flagCount > 0 && setExpandedId(isExpanded ? null : r.studentId)}
                       >
@@ -212,7 +214,7 @@ export default function Results() {
           </Card>
         </>
       ) : (
-        <p style={{ color: "var(--text-secondary)" }}>Loading…</p>
+        <p style={{ color: "var(--text-secondary)", display: "flex", alignItems: "center" }}><Spinner />Loading exam…</p>
       )}
     </PageShell>
   );

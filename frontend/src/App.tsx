@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ConfirmProvider } from "./context/ConfirmContext";
 import AppLayout from "./components/AppLayout";
 import RequireRole from "./components/RequireRole";
 import RequireExactRole from "./components/RequireExactRole";
@@ -18,6 +19,7 @@ import SchoolManagement from "./pages/SchoolManagement";
 export default function App() {
   return (
     <AuthProvider>
+      <ConfirmProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -51,6 +53,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </ConfirmProvider>
     </AuthProvider>
   );
 }

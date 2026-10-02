@@ -127,3 +127,11 @@ th {
 td {
   border-bottom: 0.5px solid var(--border);
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+tr[data-clickable="true"]:hover {
+  background: var(--bg-accent-muted);
+}

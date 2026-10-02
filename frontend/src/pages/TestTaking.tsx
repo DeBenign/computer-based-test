@@ -6,6 +6,7 @@ import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
+import Spinner from "../components/Spinner";
 
 interface AttemptQuestion {
   _id: string;
@@ -313,7 +314,7 @@ export default function TestTaking() {
     window.addEventListener("online", retry);
   }
 
-  if (loading) return <PageShell><p style={{ color: "var(--text-secondary)" }}>Loading exam…</p></PageShell>;
+  if (loading) return <PageShell><p style={{ color: "var(--text-secondary)", display: "flex", alignItems: "center" }}><Spinner />Loading exam…</p></PageShell>;
   if (error && questions.length === 0) {
     return <PageShell><p style={{ color: "var(--text-danger)" }}>{error}</p></PageShell>;
   }

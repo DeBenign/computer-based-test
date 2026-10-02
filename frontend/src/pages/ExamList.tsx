@@ -8,6 +8,7 @@ import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
+import { useConfirm } from "../context/ConfirmContext";
 
 function statusInfo(exam: Exam): { label: string; tone: "success" | "warning" | "neutral" } {
   const now = Date.now();
@@ -31,16 +32,11 @@ export default function ExamList() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const { user } = useAuth();
   const rolePath = useRolePath();
+  const confirm = useConfirm();
   const isStudent = user?.role === "student";
   const canManage = user?.role === "teacher";
 
   async function loadAll() {
-    // Students have no /student/classes or /student/subjects route on the
-    // backend -- that lookup is only ever used for the "Subject · Class"
-    // caption line teachers/admins see, which students don't render at all.
-    // Fetching it unconditionally for every role meant a student's request
-    // always 404'd, Promise.all rejected before setExams() ever ran, and
-    // the page silently showed "No exams yet" even when real exams existed.
     const examRes = await api.get("/exams");
     setExams(examRes.data);
 
@@ -57,7 +53,8 @@ export default function ExamList() {
   }, []);
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this draft? This can't be undone.")) return;
+    const ok = await confirm("Delete this draft? This can't be undone.");
+    if (!ok) return;
     await api.delete(`/exams/${id}`);
     await loadAll();
   }

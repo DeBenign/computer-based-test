@@ -7,6 +7,7 @@ import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
+import Spinner from "../components/Spinner";
 
 function toLocalInputValue(iso: string): string {
   const d = new Date(iso);
@@ -139,7 +140,7 @@ export default function ExamBuilder() {
   if (loading) {
     return (
       <PageShell maxWidth={520}>
-        <p style={{ color: "var(--text-secondary)" }}>Loading exam…</p>
+        <p style={{ color: "var(--text-secondary)", display: "flex", alignItems: "center" }}><Spinner />Loading exam…</p>
       </PageShell>
     );
   }

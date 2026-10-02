@@ -7,6 +7,7 @@ import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
+import { useConfirm } from "../context/ConfirmContext";
 
 const roleTone: Record<string, "accent" | "warning" | "success"> = {
   admin: "accent",
@@ -20,6 +21,7 @@ function idSuffix(id?: string) {
 
 export default function UserManagement() {
   const rolePath = useRolePath();
+  const confirm = useConfirm();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -82,7 +84,8 @@ export default function UserManagement() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this account? They'll lose access immediately. This can't be undone.")) return;
+    const ok = await confirm("Delete this account? They'll lose access immediately. This can't be undone.");
+    if (!ok) return;
     try {
       await api.delete(`/users/${id}`);
       await loadAll();
