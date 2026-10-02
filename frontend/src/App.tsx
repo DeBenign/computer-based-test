@@ -20,39 +20,39 @@ export default function App() {
   return (
     <AuthProvider>
       <ConfirmProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
 
-          <Route path="/:role" element={<RequireRole />}>
-            <Route element={<AppLayout />}>
-              <Route element={<RequireExactRole allow={["superadmin"]} />}>
-                <Route path="schools" element={<SchoolManagement />} />
+            <Route path="/:role" element={<RequireRole />}>
+              <Route element={<AppLayout />}>
+                <Route element={<RequireExactRole allow={["superadmin"]} />}>
+                  <Route path="schools" element={<SchoolManagement />} />
+                </Route>
+                <Route element={<RequireExactRole allow={["admin"]} />}>
+                  <Route path="setup" element={<Setup />} />
+                  <Route path="users" element={<UserManagement />} />
+                </Route>
+                <Route element={<RequireExactRole allow={["admin", "teacher"]} />}>
+                  <Route path="questions" element={<QuestionBank />} />
+                  <Route path="exams/new" element={<ExamBuilder />} />
+                  <Route path="exams/:id/edit" element={<ExamBuilder />} />
+                </Route>
+                <Route element={<RequireExactRole allow={["teacher"]} />}>
+                  <Route path="grading/:examId" element={<GradingQueue />} />
+                </Route>
+                <Route element={<RequireExactRole allow={["student"]} />}>
+                  <Route path="exams/:id/take" element={<TestTaking />} />
+                </Route>
+                <Route path="exams" element={<ExamList />} />
+                <Route path="results" element={<Results />} />
               </Route>
-              <Route element={<RequireExactRole allow={["admin"]} />}>
-                <Route path="setup" element={<Setup />} />
-                <Route path="users" element={<UserManagement />} />
-              </Route>
-              <Route element={<RequireExactRole allow={["admin", "teacher"]} />}>
-                <Route path="questions" element={<QuestionBank />} />
-                <Route path="exams/new" element={<ExamBuilder />} />
-                <Route path="exams/:id/edit" element={<ExamBuilder />} />
-              </Route>
-              <Route element={<RequireExactRole allow={["teacher"]} />}>
-                <Route path="grading/:examId" element={<GradingQueue />} />
-              </Route>
-              <Route element={<RequireExactRole allow={["student"]} />}>
-                <Route path="exams/:id/take" element={<TestTaking />} />
-              </Route>
-              <Route path="exams" element={<ExamList />} />
-              <Route path="results" element={<Results />} />
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
       </ConfirmProvider>
     </AuthProvider>
   );
