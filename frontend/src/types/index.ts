@@ -23,11 +23,13 @@ export interface AppUser {
 export interface Question {
   _id: string;
   subjectId: string;
+  classId: string;
   topic: string;
   type: "mcq" | "theory";
   difficulty: "easy" | "medium" | "hard";
   questionText: string;
   options: { text: string; isCorrect: boolean }[];
+  correctAnswerText?: string;
   marks: number;
   curriculumTag?: string;
 }
@@ -42,4 +44,5 @@ export interface Exam {
   startTime: string;
   endTime: string;
   status: "draft" | "scheduled" | "live" | "closed";
+  lockdownRequired?: boolean;
 }

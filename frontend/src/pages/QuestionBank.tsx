@@ -33,9 +33,11 @@ export default function QuestionBank() {
   const [classId, setClassId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [topic, setTopic] = useState("");
+  const [type, setType] = useState<"mcq" | "theory">("mcq");
   const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [questionText, setQuestionText] = useState("");
   const [options, setOptions] = useState(emptyOptions);
+  const [correctAnswerText, setCorrectAnswerText] = useState("");
   const [marks, setMarks] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,14 +63,9 @@ export default function QuestionBank() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Only offer classes this subject is actually taught in
   const subject = subjects.find((s) => s._id === subjectId);
   const classOptions = classes.filter((c) => subject?.classIds.includes(c._id));
 
-  // Reset classId whenever the subject (or the classes list itself) changes --
-  // both loadSubjects() and loadClasses() fire in parallel on mount, so this
-  // has to depend on `classes` too, not just `subjectId`, or it can fire once
-  // before `classes` has actually loaded and get stuck on an empty string.
   useEffect(() => {
     setClassId(classOptions[0]?._id || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,14 +87,29 @@ export default function QuestionBank() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (options.some((o) => !o.text.trim())) {
+    if (type === "mcq" && options.some((o) => !o.text.trim())) {
       setError("Fill in all four options.");
       return;
     }
+    if (type === "theory" && !questionText.trim()) {
+      setError("Enter the question text.");
+      return;
+    }
     try {
-      await api.post("/questions", { subjectId, classId, topic, difficulty, questionText, options, marks });
+      await api.post("/questions", {
+        subjectId,
+        classId,
+        topic,
+        type,
+        difficulty,
+        questionText,
+        options: type === "mcq" ? options : undefined,
+        correctAnswerText: type === "theory" ? correctAnswerText : undefined,
+        marks
+      });
       setQuestionText("");
       setOptions(emptyOptions);
+      setCorrectAnswerText("");
       await loadQuestions();
     } catch (err: any) {
       setError(err.response?.data?.error || "Couldn't save the question.");
@@ -153,6 +165,13 @@ export default function QuestionBank() {
         <Card style={{ marginBottom: 24 }}>
           <h3>Add a question</h3>
           <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+            <div style={{ width: 120 }}>
+              <label>Type</label>
+              <select value={type} onChange={(e) => setType(e.target.value as "mcq" | "theory")} style={{ width: "100%" }}>
+                <option value="mcq">MCQ</option>
+                <option value="theory">Theory</option>
+              </select>
+            </div>
             <div style={{ flex: 1 }}>
               <label>Topic</label>
               <input value={topic} onChange={(e) => setTopic(e.target.value)} required style={{ width: "100%" }} />
@@ -181,18 +200,31 @@ export default function QuestionBank() {
             />
           </div>
 
-          <label style={{ marginBottom: 6 }}>Options — select the correct one</label>
-          {options.map((opt, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <input type="radio" name="correct" checked={opt.isCorrect} onChange={() => setCorrectOption(i)} />
-              <input
-                placeholder={`Option ${i + 1}`}
-                value={opt.text}
-                onChange={(e) => updateOptionText(i, e.target.value)}
-                style={{ flex: 1 }}
+          {type === "mcq" ? (
+            <>
+              <label style={{ marginBottom: 6 }}>Options — select the correct one</label>
+              {options.map((opt, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                  <input type="radio" name="correct" checked={opt.isCorrect} onChange={() => setCorrectOption(i)} />
+                  <input
+                    placeholder={`Option ${i + 1}`}
+                    value={opt.text}
+                    onChange={(e) => updateOptionText(i, e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                </div>
+              ))}
+            </>
+          ) : (
+            <div style={{ marginBottom: 12 }}>
+              <label>Model answer (optional — for your own reference while grading; students never see this)</label>
+              <textarea
+                value={correctAnswerText}
+                onChange={(e) => setCorrectAnswerText(e.target.value)}
+                style={{ width: "100%", minHeight: 48 }}
               />
             </div>
-          ))}
+          )}
 
           {error && <p style={{ color: "var(--text-danger)", fontSize: 13, marginTop: 4 }}>{error}</p>}
 
@@ -216,6 +248,7 @@ export default function QuestionBank() {
             <div>
               <p style={{ fontWeight: 500, marginBottom: 6 }}>{q.questionText}</p>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Badge tone={q.type === "theory" ? "warning" : "success"}>{q.type}</Badge>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{q.topic}</span>
                 <Badge tone={difficultyTone[q.difficulty]}>{q.difficulty}</Badge>
                 <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{q.marks} mark{q.marks > 1 ? "s" : ""}</span>

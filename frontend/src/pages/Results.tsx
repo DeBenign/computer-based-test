@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useState, Fragment } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PageShell from "../components/PageShell";
+import { useRolePath } from "../hooks/useRolePath";
 
 interface FlaggedEvent {
   type: string;
@@ -18,6 +19,7 @@ interface StudentRow {
   totalMarks: number;
   status: string;
   submittedAt: string;
+  needsGrading: boolean;
   flagCount: number;
   flaggedEvents: FlaggedEvent[];
 }
@@ -33,11 +35,13 @@ interface ExamResults {
 interface MyResult {
   status: string;
   score: number;
+  needsGrading: boolean;
   submittedAt: string;
 }
 
 export default function Results() {
   const { user } = useAuth();
+  const rolePath = useRolePath();
   const [searchParams] = useSearchParams();
   const examId = searchParams.get("examId");
 
@@ -119,7 +123,12 @@ export default function Results() {
         <h1>Your result</h1>
         {myResult ? (
           <Card>
-            <p><strong>Score:</strong> {myResult.score}</p>
+            {myResult.needsGrading && (
+              <p style={{ color: "var(--text-warning)", fontSize: 13, marginBottom: 10 }}>
+                Part of this exam is still being graded by your teacher — this score isn't final yet.
+              </p>
+            )}
+            <p><strong>Score:</strong> {myResult.score}{myResult.needsGrading ? " (provisional)" : ""}</p>
             <p><strong>Status:</strong> {myResult.status}</p>
             <p style={{ marginBottom: 0 }}><strong>Submitted:</strong> {new Date(myResult.submittedAt).toLocaleString()}</p>
           </Card>
@@ -136,9 +145,16 @@ export default function Results() {
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
             <h1 style={{ marginBottom: 0 }}>{classResults.examTitle} — results</h1>
-            <button type="button" onClick={handleDownload} disabled={downloading}>
-              {downloading ? "Preparing…" : "Download CSV"}
-            </button>
+            <div style={{ display: "flex", gap: 8 }}>
+              {user?.role === "teacher" && (
+                <Link to={rolePath(`/grading/${examId}`)}>
+                  <button type="button">Grade theory answers</button>
+                </Link>
+              )}
+              <button type="button" onClick={handleDownload} disabled={downloading}>
+                {downloading ? "Preparing…" : "Download CSV"}
+              </button>
+            </div>
           </div>
           <p style={{ color: "var(--text-secondary)", marginBottom: 16 }}>
             Class average: <strong style={{ color: "var(--text-primary)" }}>{classResults.classAverage} / {classResults.totalMarks}</strong>
@@ -159,14 +175,16 @@ export default function Results() {
                 {classResults.results.map((r) => {
                   const isExpanded = expandedId === r.studentId;
                   return (
-                    <>
+                    <Fragment key={r.studentId}>
                       <tr
-                        key={r.studentId}
                         style={{ cursor: r.flagCount > 0 ? "pointer" : "default" }}
                         onClick={() => r.flagCount > 0 && setExpandedId(isExpanded ? null : r.studentId)}
                       >
                         <td>{r.studentName}</td>
-                        <td>{r.score} / {r.totalMarks}</td>
+                        <td>
+                          {r.score} / {r.totalMarks}
+                          {r.needsGrading && <Badge tone="warning">pending grading</Badge>}
+                        </td>
                         <td>
                           {r.status === "flagged" ? <Badge tone="danger">flagged</Badge> : r.status}
                         </td>
@@ -176,7 +194,7 @@ export default function Results() {
                         <td>{new Date(r.submittedAt).toLocaleString()}</td>
                       </tr>
                       {isExpanded && (
-                        <tr key={`${r.studentId}-detail`}>
+                        <tr>
                           <td colSpan={5} style={{ fontSize: 12, color: "var(--text-secondary)", paddingTop: 0 }}>
                             {r.flaggedEvents.map((e, i) => (
                               <div key={i}>
@@ -186,7 +204,7 @@ export default function Results() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   );
                 })}
               </tbody>

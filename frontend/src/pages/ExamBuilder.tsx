@@ -1,13 +1,13 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import api from "../services/api";
-import { Subject, ClassRoom } from "../types";
+import { Subject, ClassRoom, Question } from "../types";
 import Card from "../components/Card";
+import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import { useRolePath } from "../hooks/useRolePath";
 
-// Convert an ISO date string to the "YYYY-MM-DDTHH:mm" shape <input type="datetime-local"> expects.
 function toLocalInputValue(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -28,7 +28,8 @@ export default function ExamBuilder() {
   const [lockdownRequired, setLockdownRequired] = useState(true);
   const [topics, setTopics] = useState("");
   const [questionCount, setQuestionCount] = useState(20);
-  const [attachedCount, setAttachedCount] = useState(0);
+  const [attachedIds, setAttachedIds] = useState<string[]>([]);
+  const [bankQuestions, setBankQuestions] = useState<Question[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [examId, setExamId] = useState<string | null>(existingExamId || null);
   const [loading, setLoading] = useState(!!existingExamId);
@@ -50,7 +51,7 @@ export default function ExamBuilder() {
         setStartTime(toLocalInputValue(exam.startTime));
         setEndTime(toLocalInputValue(exam.endTime));
         setLockdownRequired(!!exam.lockdownRequired);
-        setAttachedCount(exam.questionIds?.length || 0);
+        setAttachedIds(exam.questionIds || []);
         setLoading(false);
       } else {
         if (subRes.data.length > 0) setSubjectId(subRes.data[0]._id);
@@ -58,6 +59,14 @@ export default function ExamBuilder() {
       }
     })();
   }, [existingExamId]);
+
+  // Load the bank for this exam's exact subject+class once the exam exists,
+  // so the manual attach list below shows the right questions -- including
+  // theory ones, which auto-fill never picks up on its own.
+  useEffect(() => {
+    if (!examId || !subjectId || !classId) return;
+    api.get("/questions", { params: { subjectId, classId } }).then((res) => setBankQuestions(res.data));
+  }, [examId, subjectId, classId]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -68,12 +77,6 @@ export default function ExamBuilder() {
         classId,
         title,
         duration,
-        // datetime-local gives a bare "2026-10-01T01:38" with no timezone,
-        // which gets misread as UTC once it reaches a server running in a
-        // different timezone than the user. Converting here, in the
-        // browser, is the only place that actually knows the user's real
-        // local offset -- toISOString() turns it into one unambiguous
-        // instant that displays correctly everywhere downstream.
         startTime: new Date(startTime).toISOString(),
         endTime: new Date(endTime).toISOString(),
         randomizeQuestions: true,
@@ -96,7 +99,7 @@ export default function ExamBuilder() {
         count: questionCount
       });
       const { addedCount, requestedCount, exam } = res.data;
-      setAttachedCount(exam.questionIds?.length || addedCount);
+      setAttachedIds(exam.questionIds || []);
       if (addedCount < requestedCount) {
         setStatus(`Only found ${addedCount} of ${requestedCount} matching questions in the bank — added those.`);
       } else {
@@ -104,6 +107,21 @@ export default function ExamBuilder() {
       }
     } catch (err: any) {
       setStatus(err.response?.data?.error || "Auto-fill failed.");
+    }
+  }
+
+  async function handleToggleQuestion(questionId: string) {
+    if (!examId) return;
+    try {
+      if (attachedIds.includes(questionId)) {
+        const res = await api.delete(`/exams/${examId}/questions/${questionId}`);
+        setAttachedIds(res.data.questionIds || []);
+      } else {
+        const res = await api.post(`/exams/${examId}/questions`, { questionIds: [questionId] });
+        setAttachedIds(res.data.questionIds || []);
+      }
+    } catch (err: any) {
+      setStatus(err.response?.data?.error || "Couldn't update the exam's questions.");
     }
   }
 
@@ -139,6 +157,9 @@ export default function ExamBuilder() {
       </PageShell>
     );
   }
+
+  const theoryQuestions = bankQuestions.filter((q) => q.type === "theory");
+  const mcqQuestions = bankQuestions.filter((q) => q.type === "mcq");
 
   return (
     <PageShell maxWidth={560}>
@@ -202,34 +223,83 @@ export default function ExamBuilder() {
       </Card>
 
       {examId && (
-        <Card style={{ marginBottom: 20 }}>
-          <h3>Add questions</h3>
-          <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
-            {attachedCount} question{attachedCount === 1 ? "" : "s"} attached so far.
-          </p>
-          <div style={{ marginBottom: 12 }}>
-            <label>Topics (comma separated, optional — leave blank to match any topic)</label>
-            <input value={topics} onChange={(e) => setTopics(e.target.value)} style={{ width: "100%" }} />
-          </div>
-          <div style={{ marginBottom: 14, width: 140 }}>
-            <label>Number of questions</label>
-            <input
-              type="number"
-              value={questionCount}
-              onChange={(e) => setQuestionCount(Number(e.target.value))}
-              style={{ width: "100%" }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
+        <>
+          <Card style={{ marginBottom: 20 }}>
+            <h3>Auto-fill (MCQ only)</h3>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
+              {attachedIds.length} question{attachedIds.length === 1 ? "" : "s"} attached so far.
+            </p>
+            <div style={{ marginBottom: 12 }}>
+              <label>Topics (comma separated, optional — leave blank to match any topic)</label>
+              <input value={topics} onChange={(e) => setTopics(e.target.value)} style={{ width: "100%" }} />
+            </div>
+            <div style={{ marginBottom: 14, width: 140 }}>
+              <label>Number of questions</label>
+              <input
+                type="number"
+                value={questionCount}
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+            </div>
             <button onClick={handleAutoFill} type="button">Auto-fill from bank</button>
-            <PrimaryButton onClick={handlePublish} type="button" disabled={attachedCount === 0}>
-              Publish exam
-            </PrimaryButton>
-          </div>
-        </Card>
+          </Card>
+
+          <Card style={{ marginBottom: 20 }}>
+            <h3>Add questions manually</h3>
+            <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
+              Auto-fill only picks MCQ questions. Theory questions — or any specific MCQ you want to hand-pick —
+              get added here instead.
+            </p>
+
+            {theoryQuestions.length > 0 && (
+              <>
+                <p style={{ fontSize: 13, fontWeight: 500, marginBottom: 6 }}>Theory</p>
+                {theoryQuestions.map((q) => (
+                  <label key={q._id} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8, fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={attachedIds.includes(q._id)}
+                      onChange={() => handleToggleQuestion(q._id)}
+                    />
+                    <span>
+                      {q.questionText} <Badge tone="warning">{q.marks} mark{q.marks > 1 ? "s" : ""}</Badge>
+                    </span>
+                  </label>
+                ))}
+              </>
+            )}
+
+            {mcqQuestions.length > 0 && (
+              <>
+                <p style={{ fontSize: 13, fontWeight: 500, marginTop: 12, marginBottom: 6 }}>MCQ</p>
+                {mcqQuestions.map((q) => (
+                  <label key={q._id} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8, fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={attachedIds.includes(q._id)}
+                      onChange={() => handleToggleQuestion(q._id)}
+                    />
+                    <span>
+                      {q.questionText} <Badge tone="success">{q.marks} mark{q.marks > 1 ? "s" : ""}</Badge>
+                    </span>
+                  </label>
+                ))}
+              </>
+            )}
+
+            {bankQuestions.length === 0 && (
+              <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>No questions in the bank yet for this subject/class.</p>
+            )}
+          </Card>
+
+          <PrimaryButton onClick={handlePublish} type="button" disabled={attachedIds.length === 0}>
+            Publish exam
+          </PrimaryButton>
+        </>
       )}
 
-      {status && <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>{status}</p>}
+      {status && <p style={{ color: "var(--text-secondary)", fontSize: 13, marginTop: 12 }}>{status}</p>}
     </PageShell>
   );
 }

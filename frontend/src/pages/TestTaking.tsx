@@ -10,13 +10,45 @@ import { useRolePath } from "../hooks/useRolePath";
 interface AttemptQuestion {
   _id: string;
   questionText: string;
+  type: "mcq" | "theory";
+  marks: number;
   options: { text: string }[];
 }
 
 interface PendingAnswer {
   questionId: string;
-  selectedOption: string;
+  selectedOption?: string;
+  answerText?: string;
   clientTimestamp: number;
+}
+
+function localStorageKey(attemptId: string) {
+  return `cbt_pending_${attemptId}`;
+}
+
+function savePendingToStorage(attemptId: string, pending: Map<string, PendingAnswer>) {
+  try {
+    localStorage.setItem(localStorageKey(attemptId), JSON.stringify(Array.from(pending.values())));
+  } catch {
+    // storage full or unavailable -- the in-memory map still has it for this session
+  }
+}
+
+function clearPendingStorage(attemptId: string) {
+  try {
+    localStorage.removeItem(localStorageKey(attemptId));
+  } catch {
+    // nothing to do
+  }
+}
+
+function loadPendingFromStorage(attemptId: string): PendingAnswer[] {
+  try {
+    const raw = localStorage.getItem(localStorageKey(attemptId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
 export default function TestTaking() {
@@ -34,6 +66,8 @@ export default function TestTaking() {
   const [error, setError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [violationCount, setViolationCount] = useState(0);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [hasPendingLocally, setHasPendingLocally] = useState(false);
 
   const pendingRef = useRef<Map<string, PendingAnswer>>(new Map());
   const attemptIdRef = useRef<string | null>(null);
@@ -46,6 +80,25 @@ export default function TestTaking() {
   useEffect(() => {
     submittedRef.current = submitted;
   }, [submitted]);
+
+  // Track online/offline status for the UI indicator. navigator.onLine is
+  // not perfectly reliable (it only knows about the network interface, not
+  // whether the API server is actually reachable), but it's the right
+  // signal for "don't bother trying to save right now" during a true outage.
+  useEffect(() => {
+    function goOnline() {
+      setIsOnline(true);
+    }
+    function goOffline() {
+      setIsOnline(false);
+    }
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -61,7 +114,21 @@ export default function TestTaking() {
         const restored: Record<string, string> = {};
         for (const a of attempt.answers || []) {
           if (a.selectedOption) restored[a.questionId] = a.selectedOption;
+          if (a.answerText) restored[a.questionId] = a.answerText;
         }
+
+        // Recover anything that was answered but never confirmed saved --
+        // e.g. the tab closed or the device lost power before the last
+        // autosave went through. This is the whole point of persisting to
+        // localStorage on every keystroke/selection rather than only
+        // holding pending answers in memory.
+        const leftover = loadPendingFromStorage(attempt._id);
+        for (const p of leftover) {
+          pendingRef.current.set(p.questionId, p);
+          restored[p.questionId] = p.selectedOption || p.answerText || restored[p.questionId];
+        }
+        if (leftover.length > 0) setHasPendingLocally(true);
+
         setAnswers(restored);
       } catch (err: any) {
         setError(err.response?.data?.error || "Couldn't start the exam.");
@@ -90,8 +157,6 @@ export default function TestTaking() {
     }
   }
 
-  // Tab-switch / window-blur detection -- active for every exam, not just
-  // lockdown ones, so there's always a record even if it doesn't terminate.
   useEffect(() => {
     function onVisibilityChange() {
       if (document.hidden) reportFlag("tab-switch");
@@ -108,7 +173,6 @@ export default function TestTaking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fullscreen enforcement, only for exams the teacher marked as lockdown-required.
   useEffect(() => {
     if (!lockdownRequired || loading) return;
 
@@ -126,7 +190,6 @@ export default function TestTaking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lockdownRequired, loading]);
 
-  // Block copy/paste, right-click, and common devtools shortcuts during the exam.
   useEffect(() => {
     function onContextMenu(e: MouseEvent) {
       e.preventDefault();
@@ -174,15 +237,18 @@ export default function TestTaking() {
     const flush = async () => {
       const pending = Array.from(pendingRef.current.values());
       if (pending.length === 0) return;
+      if (!navigator.onLine) return; // don't even try -- avoids a pile of noisy failed requests
       try {
         const res = await api.post(`/attempts/${attemptId}/autosave`, { answers: pending });
         pendingRef.current.clear();
+        clearPendingStorage(attemptId);
+        setHasPendingLocally(false);
         setLastSavedAt(new Date());
         if (typeof res.data.remainingMs === "number") {
           setRemainingMs(res.data.remainingMs);
         }
       } catch {
-        // stays queued, retried next interval or on reconnect
+        // stays queued in both memory and localStorage, retried next interval or on reconnect
       }
     };
 
@@ -194,13 +260,22 @@ export default function TestTaking() {
     };
   }, [attemptId, submitted]);
 
+  function persistPending(questionId: string, entry: PendingAnswer) {
+    pendingRef.current.set(questionId, entry);
+    setHasPendingLocally(true);
+    if (attemptIdRef.current) {
+      savePendingToStorage(attemptIdRef.current, pendingRef.current);
+    }
+  }
+
   function selectAnswer(questionId: string, optionText: string) {
     setAnswers((prev) => ({ ...prev, [questionId]: optionText }));
-    pendingRef.current.set(questionId, {
-      questionId,
-      selectedOption: optionText,
-      clientTimestamp: Date.now()
-    });
+    persistPending(questionId, { questionId, selectedOption: optionText, clientTimestamp: Date.now() });
+  }
+
+  function updateTheoryAnswer(questionId: string, text: string) {
+    setAnswers((prev) => ({ ...prev, [questionId]: text }));
+    persistPending(questionId, { questionId, answerText: text, clientTimestamp: Date.now() });
   }
 
   async function handleSubmit(auto = false) {
@@ -212,9 +287,10 @@ export default function TestTaking() {
         await api.post(`/attempts/${attemptId}/autosave`, { answers: pending });
       }
       await api.post(`/attempts/${attemptId}/submit`);
+      clearPendingStorage(attemptId);
       navigate(rolePath("/exams"), { state: { message: auto ? "Time's up — your exam was submitted automatically." : "Exam submitted." } });
     } catch {
-      setError("Couldn't reach the server. Your answers are saved and will submit once you're back online.");
+      setError("Couldn't reach the server. Your answers are saved on this device and will submit once you're back online.");
       retrySubmitWhenOnline();
     }
   }
@@ -222,7 +298,12 @@ export default function TestTaking() {
   function retrySubmitWhenOnline() {
     const retry = async () => {
       try {
+        const pending = Array.from(pendingRef.current.values());
+        if (pending.length > 0 && attemptId) {
+          await api.post(`/attempts/${attemptId}/autosave`, { answers: pending });
+        }
         await api.post(`/attempts/${attemptId}/submit`);
+        if (attemptId) clearPendingStorage(attemptId);
         window.removeEventListener("online", retry);
         navigate(rolePath("/exams"), { state: { message: "Exam submitted." } });
       } catch {
@@ -240,6 +321,17 @@ export default function TestTaking() {
   const minutes = remainingMs !== null ? Math.max(0, Math.floor(remainingMs / 60000)) : 0;
   const seconds = remainingMs !== null ? Math.max(0, Math.floor((remainingMs % 60000) / 1000)) : 0;
   const timeLow = remainingMs !== null && remainingMs < 5 * 60 * 1000;
+
+  let syncLabel: string;
+  if (!isOnline) {
+    syncLabel = "Offline — your answers are saved on this device and will sync once you're back online";
+  } else if (hasPendingLocally) {
+    syncLabel = "Saving…";
+  } else if (lastSavedAt) {
+    syncLabel = `Saved ${lastSavedAt.toLocaleTimeString()}`;
+  } else {
+    syncLabel = "Saves automatically as you answer";
+  }
 
   return (
     <PageShell maxWidth={600}>
@@ -263,6 +355,12 @@ export default function TestTaking() {
           </Badge>
         </div>
 
+        {!isOnline && (
+          <p style={{ color: "var(--text-warning)", fontSize: 13, marginBottom: 12 }}>
+            You're offline right now. Keep answering — nothing is lost, it'll sync automatically once your connection comes back.
+          </p>
+        )}
+
         {lockdownRequired && violationCount > 0 && (
           <p style={{ color: "var(--text-danger)", fontSize: 13, marginBottom: 12 }}>
             Warning: {violationCount}/3 integrity violations recorded. Your exam will end automatically if this continues.
@@ -275,42 +373,58 @@ export default function TestTaking() {
           <div key={q._id} style={{ marginBottom: 20 }}>
             <p style={{ fontWeight: 500, marginBottom: 8 }}>
               <span style={{ color: "var(--text-secondary)" }}>{idx + 1}.</span> {q.questionText}
+              {q.type === "theory" && (
+                <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8 }}>
+                  ({q.marks} mark{q.marks > 1 ? "s" : ""} — graded by your teacher)
+                </span>
+              )}
             </p>
-            {q.options.map((opt) => {
-              const selected = answers[q._id] === opt.text;
-              return (
-                <label
-                  key={opt.text}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    border: `0.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
-                    background: selected ? "var(--bg-accent-muted)" : "transparent",
-                    borderRadius: "var(--radius)",
-                    marginBottom: 6,
-                    fontSize: 14,
-                    cursor: submitted ? "default" : "pointer"
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name={q._id}
-                    checked={selected}
-                    onChange={() => selectAnswer(q._id, opt.text)}
-                    disabled={submitted}
-                  />
-                  {opt.text}
-                </label>
-              );
-            })}
+
+            {q.type === "mcq" ? (
+              q.options.map((opt) => {
+                const selected = answers[q._id] === opt.text;
+                return (
+                  <label
+                    key={opt.text}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "10px 12px",
+                      border: `0.5px solid ${selected ? "var(--accent)" : "var(--border)"}`,
+                      background: selected ? "var(--bg-accent-muted)" : "transparent",
+                      borderRadius: "var(--radius)",
+                      marginBottom: 6,
+                      fontSize: 14,
+                      cursor: submitted ? "default" : "pointer"
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name={q._id}
+                      checked={selected}
+                      onChange={() => selectAnswer(q._id, opt.text)}
+                      disabled={submitted}
+                    />
+                    {opt.text}
+                  </label>
+                );
+              })
+            ) : (
+              <textarea
+                value={answers[q._id] || ""}
+                onChange={(e) => updateTheoryAnswer(q._id, e.target.value)}
+                disabled={submitted}
+                style={{ width: "100%", minHeight: 120 }}
+                placeholder="Type your answer here…"
+              />
+            )}
           </div>
         ))}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 8, borderTop: "0.5px solid var(--border)" }}>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            {lastSavedAt ? `Auto-saved ${lastSavedAt.toLocaleTimeString()}` : "Saves automatically as you answer"}
+          <span style={{ fontSize: 12, color: isOnline ? "var(--text-muted)" : "var(--text-warning)" }}>
+            {syncLabel}
           </span>
           <PrimaryButton onClick={() => handleSubmit(false)} disabled={submitted}>
             {submitted ? "Submitting…" : "Submit exam"}
