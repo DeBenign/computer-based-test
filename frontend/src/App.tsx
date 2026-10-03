@@ -17,6 +17,7 @@ import UserManagement from "./pages/UserManagement";
 import SchoolManagement from "./pages/SchoolManagement";
 import ChangePassword from "./pages/ChangePassword";
 import Billing from "./pages/Billing";
+import Branding from "./pages/Branding";
 
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
                   <Route path="setup" element={<Setup />} />
                   <Route path="users" element={<UserManagement />} />
                   <Route path="billing" element={<Billing />} />
+                  <Route path="branding" element={<Branding />} />
                 </Route>
                 <Route element={<RequireExactRole allow={["admin", "teacher"]} />}>
                   <Route path="questions" element={<QuestionBank />} />

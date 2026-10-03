@@ -1,6 +1,9 @@
 import { Schema, model, Document } from "mongoose";
 
-export type SubscriptionStatus = "trial" | "active" | "expired";
+export interface ISchoolBranding {
+  logoUrl?: string;
+  primaryColor?: string;
+}
 
 export interface ISchool extends Document {
   name: string;
@@ -8,8 +11,9 @@ export interface ISchool extends Document {
   isActive: boolean;
   createdAt: Date;
   trialEndsAt: Date;
-  subscriptionStatus: SubscriptionStatus;
+  subscriptionStatus: "trial" | "active" | "expired";
   subscriptionPaidUntil?: Date;
+  branding: ISchoolBranding;
 }
 
 const schoolSchema = new Schema<ISchool>({
@@ -19,7 +23,11 @@ const schoolSchema = new Schema<ISchool>({
   createdAt: { type: Date, default: Date.now },
   trialEndsAt: { type: Date, required: true },
   subscriptionStatus: { type: String, enum: ["trial", "active", "expired"], default: "trial" },
-  subscriptionPaidUntil: Date
+  subscriptionPaidUntil: Date,
+  branding: {
+    logoUrl: String,
+    primaryColor: String
+  }
 });
 
 export default model<ISchool>("School", schoolSchema);

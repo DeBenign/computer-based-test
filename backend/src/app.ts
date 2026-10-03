@@ -17,6 +17,7 @@ import { requireAuth } from "./middleware/auth";
 import { requireRole } from "./middleware/requireRole";
 import { requireActiveSubscription } from "./middleware/requireActiveSubscription";
 import { errorHandler } from "./middleware/errorHandler";
+import brandingRoutes from "./routes/brandingRoutes";
 
 const app = express();
 const allowedOrigins = [
@@ -36,6 +37,7 @@ v1.use("/auth", authRoutes);
 
 v1.use("/superadmin/schools", requireAuth, requireRole("superadmin"), schoolRoutes);
 
+v1.use("/admin/branding", requireAuth, requireRole("admin"), brandingRoutes);
 v1.use("/admin/billing", requireAuth, requireRole("admin"), billingRoutes); // never gated -- this is the way out
 v1.use("/admin/classes", requireAuth, requireRole("admin"), requireActiveSubscription, classRoutes);
 v1.use("/admin/subjects", requireAuth, requireRole("admin"), requireActiveSubscription, subjectRoutes);
@@ -43,6 +45,8 @@ v1.use("/admin/users", requireAuth, requireRole("admin"), requireActiveSubscript
 v1.use("/admin/questions", requireAuth, requireRole("admin"), requireActiveSubscription, adminQuestionRoutes);
 v1.use("/admin/exams", requireAuth, requireRole("admin"), requireActiveSubscription, adminExamRoutes);
 
+
+v1.use("/teacher/branding", requireAuth, requireRole("teacher"), brandingRoutes);
 v1.use("/teacher/classes", requireAuth, requireRole("teacher"), requireActiveSubscription, classRoutes);
 v1.use("/teacher/subjects", requireAuth, requireRole("teacher"), requireActiveSubscription, subjectRoutes);
 v1.use("/teacher/questions", requireAuth, requireRole("teacher"), requireActiveSubscription, questionRoutes);
@@ -50,6 +54,8 @@ v1.use("/teacher/exams", requireAuth, requireRole("teacher"), requireActiveSubsc
 v1.use("/teacher/results", requireAuth, requireRole("teacher"), requireActiveSubscription, resultRoutes);
 v1.use("/teacher/grading", requireAuth, requireRole("teacher"), requireActiveSubscription, gradingRoutes);
 
+
+v1.use("/student/branding", requireAuth, requireRole("student"), brandingRoutes);
 v1.use("/student/exams", requireAuth, requireRole("student"), examRoutes);
 v1.use("/student/attempts", requireAuth, requireRole("student"), attemptRoutes);
 v1.use("/student/results", requireAuth, requireRole("student"), resultRoutes);
