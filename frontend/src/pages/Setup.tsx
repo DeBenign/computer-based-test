@@ -112,7 +112,7 @@ export default function Setup() {
       <p style={{ color: "var(--text-secondary)", marginBottom: 20 }}>
         Create your classes and subjects here first — question banks, exams, and student accounts
         all pick from these instead of needing a raw ID. Each one shown below includes its ID suffix,
-        so two entries with the same name (e.g. two "JSS2A"s) are still tellable apart.
+        so two entries with the same name (e.g. two "JSS2"s) are still tellable apart.
       </p>
 
       {error && <p style={{ color: "var(--text-danger)", fontSize: 13, marginBottom: 12 }}>{error}</p>}
@@ -121,7 +121,7 @@ export default function Setup() {
         <h3>Classes</h3>
         <form onSubmit={handleAddClass} style={{ display: "flex", gap: 10, marginBottom: 14 }}>
           <input
-            placeholder="e.g. JSS2A"
+            placeholder="e.g. JSS1"
             value={className}
             onChange={(e) => setClassName(e.target.value)}
             required
