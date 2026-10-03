@@ -8,6 +8,14 @@ import User from "../models/User";
 export async function createExam(req: AuthedRequest, res: Response) {
   const { subjectId, classId, title, duration, startTime, endTime, randomizeQuestions, randomizeOptions, lockdownRequired } = req.body;
 
+  if (req.user!.role === "teacher") {
+    const teacher = await User.findById(req.user!.userId).select("subjectIds");
+    const owns = teacher?.subjectIds?.some((id) => id.toString() === subjectId);
+    if (!owns) {
+      return res.status(403).json({ error: "You're not assigned to this subject." });
+    }
+  }
+
   const exam = await Exam.create({
     schoolId: req.user!.schoolId,
     subjectId,
@@ -26,7 +34,6 @@ export async function createExam(req: AuthedRequest, res: Response) {
 
   res.status(201).json(exam);
 }
-
 export async function getExam(req: AuthedRequest, res: Response) {
   const exam = await Exam.findOne({ _id: req.params.id, schoolId: req.user!.schoolId }).populate("questionIds");
   if (!exam) return res.status(404).json({ error: "Exam not found" });

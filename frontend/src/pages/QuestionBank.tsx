@@ -41,6 +41,12 @@ export default function QuestionBank() {
   const [marks, setMarks] = useState(1);
   const [error, setError] = useState<string | null>(null);
 
+  // A teacher only ever sees/picks subjects they're actually assigned to.
+  // Admin keeps full visibility, matching the existing oversight model.
+  const visibleSubjects = user?.role === "teacher"
+    ? subjects.filter((s) => user.subjectIds?.includes(s._id))
+    : subjects;
+
   async function loadClasses() {
     const res = await api.get("/classes");
     setClasses(res.data);
@@ -49,7 +55,6 @@ export default function QuestionBank() {
   async function loadSubjects() {
     const res = await api.get("/subjects");
     setSubjects(res.data);
-    if (res.data.length > 0 && !subjectId) setSubjectId(res.data[0]._id);
   }
 
   async function loadQuestions() {
@@ -63,7 +68,15 @@ export default function QuestionBank() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const subject = subjects.find((s) => s._id === subjectId);
+  // Default the subject selection once visibleSubjects is actually known --
+  // can't do this in loadSubjects() anymore since it needs user.subjectIds,
+  // which isn't involved in that fetch.
+  useEffect(() => {
+    if (visibleSubjects.length > 0 && !subjectId) setSubjectId(visibleSubjects[0]._id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subjects, user?.role]);
+
+  const subject = visibleSubjects.find((s) => s._id === subjectId);
   const classOptions = classes.filter((c) => subject?.classIds.includes(c._id));
 
   useEffect(() => {
@@ -121,12 +134,16 @@ export default function QuestionBank() {
     await loadQuestions();
   }
 
-  if (subjects.length === 0) {
+  if (visibleSubjects.length === 0) {
     return (
       <PageShell maxWidth={520}>
         <h1>Question bank</h1>
         <Card>
-          <p style={{ marginBottom: 12 }}>You need at least one subject before you can add questions. Ask your school admin to add subject for you first.</p>
+          <p style={{ marginBottom: 12 }}>
+            {user?.role === "teacher"
+              ? "You're not assigned to any subject yet. Ask your school admin to assign one to you."
+              : "You need at least one subject before you can add questions. Ask your school admin to add subject for you first."}
+          </p>
           <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
@@ -145,7 +162,7 @@ export default function QuestionBank() {
           <div style={{ flex: 1 }}>
             <label>Subject</label>
             <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} style={{ width: "100%" }}>
-              {subjects.map((s) => (
+              {visibleSubjects.map((s) => (
                 <option key={s._id} value={s._id}>{s.name}</option>
               ))}
             </select>

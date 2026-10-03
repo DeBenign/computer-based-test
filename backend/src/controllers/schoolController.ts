@@ -4,6 +4,7 @@ import { AuthedRequest } from "../middleware/auth";
 import School from "../models/School";
 import User from "../models/User";
 import Payment from "../models/Payment";
+import { applyPayment } from "../services/paymentService";
 
 const TRIAL_DAYS = 90; // ~one term -- change this one line if your terms run differently
 
@@ -75,6 +76,23 @@ export async function recordPayment(req: AuthedRequest, res: Response) {
   if (!amount || !reference || !periodMonths) {
     return res.status(400).json({ error: "amount, reference, and periodMonths are required" });
   }
+  try {
+    const result = await applyPayment({
+      schoolId: req.params.id,
+      amount,
+      reference,
+      periodMonths,
+      method: "manual",
+      confirmedBy: req.user!.userId
+    });
+    if ("alreadyProcessed" in result) {
+      return res.status(409).json({ error: "A payment with this reference already exists" });
+    }
+    res.json({ message: "Payment recorded", subscriptionPaidUntil: result.subscriptionPaidUntil });
+  } catch (err: any) {
+    res.status(404).json({ error: err.message });
+  }
+}
 
   const school = await School.findById(req.params.id);
   if (!school) return res.status(404).json({ error: "School not found" });

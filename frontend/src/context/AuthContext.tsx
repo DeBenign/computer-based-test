@@ -4,6 +4,8 @@ interface AuthUser {
   id: string;
   name: string;
   role: "superadmin" | "admin" | "teacher" | "student";
+  classId?: string;
+  subjectIds?: string[];
 }
 
 interface AuthContextValue {

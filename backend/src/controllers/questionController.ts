@@ -1,9 +1,19 @@
 import { Response } from "express";
 import { AuthedRequest } from "../middleware/auth";
 import Question from "../models/Question";
+import User from "../models/User";
+
+async function teacherOwnsSubject(userId: string, subjectId: string): Promise<boolean> {
+  const teacher = await User.findById(userId).select("subjectIds");
+  return !!teacher?.subjectIds?.some((id) => id.toString() === subjectId);
+}
 
 export async function createQuestion(req: AuthedRequest, res: Response) {
   const { subjectId, classId, topic, difficulty, type, questionText, options, correctAnswerText, marks, curriculumTag } = req.body;
+
+  if (req.user!.role === "teacher" && !(await teacherOwnsSubject(req.user!.userId, subjectId))) {
+    return res.status(403).json({ error: "You're not assigned to this subject." });
+  }
 
   const questionType = type === "theory" ? "theory" : "mcq";
 
@@ -44,20 +54,29 @@ export async function listQuestions(req: AuthedRequest, res: Response) {
 }
 
 export async function updateQuestion(req: AuthedRequest, res: Response) {
+  const existing = await Question.findOne({ _id: req.params.id, schoolId: req.user!.schoolId });
+  if (!existing) return res.status(404).json({ error: "Question not found" });
+
+  if (req.user!.role === "teacher" && !(await teacherOwnsSubject(req.user!.userId, existing.subjectId.toString()))) {
+    return res.status(403).json({ error: "You're not assigned to this subject." });
+  }
+
   const question = await Question.findOneAndUpdate(
     { _id: req.params.id, schoolId: req.user!.schoolId },
     req.body,
     { new: true }
   );
-  if (!question) return res.status(404).json({ error: "Question not found" });
   res.json(question);
 }
 
 export async function deleteQuestion(req: AuthedRequest, res: Response) {
-  const result = await Question.findOneAndDelete({
-    _id: req.params.id,
-    schoolId: req.user!.schoolId
-  });
-  if (!result) return res.status(404).json({ error: "Question not found" });
+  const existing = await Question.findOne({ _id: req.params.id, schoolId: req.user!.schoolId });
+  if (!existing) return res.status(404).json({ error: "Question not found" });
+
+  if (req.user!.role === "teacher" && !(await teacherOwnsSubject(req.user!.userId, existing.subjectId.toString()))) {
+    return res.status(403).json({ error: "You're not assigned to this subject." });
+  }
+
+  await existing.deleteOne();
   res.status(204).send();
 }

@@ -61,7 +61,10 @@ export async function login(req: Request, res: Response) {
       { expiresIn: process.env.JWT_EXPIRES_IN || "8h" } as jwt.SignOptions
     );
 
-    return res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+    return res.json({
+      token,
+      user: { id: user._id, name: user.name, role: user.role, classId: user.classId, subjectIds: user.subjectIds }
+    });
   } catch (err) {
     return res.status(500).json({ error: "Login failed" });
   }

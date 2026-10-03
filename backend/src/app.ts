@@ -18,6 +18,7 @@ import { requireRole } from "./middleware/requireRole";
 import { requireActiveSubscription } from "./middleware/requireActiveSubscription";
 import { errorHandler } from "./middleware/errorHandler";
 import brandingRoutes from "./routes/brandingRoutes";
+import { handleNombaWebhook } from "./controllers/nombaController";
 
 const app = express();
 const allowedOrigins = [
@@ -29,9 +30,15 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    (req as any).rawBody = buf.toString("utf8");
+  }
+}));
 
 const v1 = express.Router();
+
+v1.post("/webhooks/nomba", asyncHandler(handleNombaWebhook));
 
 v1.use("/auth", authRoutes);
 

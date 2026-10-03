@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import { Subject, ClassRoom, Question } from "../types";
 import Card from "../components/Card";
 import Badge from "../components/Badge";
@@ -18,6 +19,7 @@ function toLocalInputValue(iso: string): string {
 export default function ExamBuilder() {
   const { id: existingExamId } = useParams();
   const rolePath = useRolePath();
+  const { user } = useAuth();
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [subjectId, setSubjectId] = useState("");
@@ -35,6 +37,12 @@ export default function ExamBuilder() {
   const [examId, setExamId] = useState<string | null>(existingExamId || null);
   const [loading, setLoading] = useState(!!existingExamId);
   const navigate = useNavigate();
+
+  // Same restriction as the Question Bank -- a teacher only ever sees
+  // subjects they're actually assigned to.
+  const visibleSubjects = subjects.filter(
+    (s) => user?.role !== "teacher" || user.subjectIds?.includes(s._id)
+  );
 
   useEffect(() => {
     (async () => {
@@ -55,15 +63,16 @@ export default function ExamBuilder() {
         setAttachedIds(exam.questionIds || []);
         setLoading(false);
       } else {
-        if (subRes.data.length > 0) setSubjectId(subRes.data[0]._id);
+        const ownSubjects = user?.role === "teacher"
+          ? subRes.data.filter((s: Subject) => user.subjectIds?.includes(s._id))
+          : subRes.data;
+        if (ownSubjects.length > 0) setSubjectId(ownSubjects[0]._id);
         if (classRes.data.length > 0) setClassId(classRes.data[0]._id);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingExamId]);
 
-  // Load the bank for this exam's exact subject+class once the exam exists,
-  // so the manual attach list below shows the right questions -- including
-  // theory ones, which auto-fill never picks up on its own.
   useEffect(() => {
     if (!examId || !subjectId || !classId) return;
     api.get("/questions", { params: { subjectId, classId } }).then((res) => setBankQuestions(res.data));
@@ -100,7 +109,7 @@ export default function ExamBuilder() {
         count: questionCount
       });
       const { addedCount, requestedCount, exam } = res.data;
-      setAttachedIds(exam.questionIds || []);
+      setAttachedIds(exam.questionIds || addedCount);
       if (addedCount < requestedCount) {
         setStatus(`Only found ${addedCount} of ${requestedCount} matching questions in the bank — added those.`);
       } else {
@@ -145,12 +154,16 @@ export default function ExamBuilder() {
     );
   }
 
-  if (subjects.length === 0 || classes.length === 0) {
+  if (visibleSubjects.length === 0 || classes.length === 0) {
     return (
       <PageShell maxWidth={520}>
         <h1>New exam</h1>
         <Card>
-          <p style={{ marginBottom: 12 }}>You need at least one class and one subject before creating an exam. Ask your school admin to add class and subject for you first.</p>
+          <p style={{ marginBottom: 12 }}>
+            {visibleSubjects.length === 0 && user?.role === "teacher"
+              ? "You're not assigned to any subject yet. Ask your school admin to assign one to you."
+              : "You need at least one class and one subject before creating an exam. Ask your school admin to add class and subject for you first."}
+          </p>
           <Link to={rolePath("/setup")}>
             <PrimaryButton type="button">Go to Setup</PrimaryButton>
           </Link>
@@ -172,7 +185,7 @@ export default function ExamBuilder() {
             <div style={{ flex: 1 }}>
               <label>Subject</label>
               <select value={subjectId} onChange={(e) => setSubjectId(e.target.value)} style={{ width: "100%" }} disabled={!!examId}>
-                {subjects.map((s) => (
+                {visibleSubjects.map((s) => (
                   <option key={s._id} value={s._id}>{s.name}</option>
                 ))}
               </select>
