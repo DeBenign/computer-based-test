@@ -19,6 +19,7 @@ import { requireActiveSubscription } from "./middleware/requireActiveSubscriptio
 import { errorHandler } from "./middleware/errorHandler";
 import brandingRoutes from "./routes/brandingRoutes";
 import { handleNombaWebhook } from "./controllers/nombaController";
+import { asyncHandler } from "./middleware/asyncHandler";
 
 const app = express();
 const allowedOrigins = [
