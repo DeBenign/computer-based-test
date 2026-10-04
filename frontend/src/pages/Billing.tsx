@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, FormEvent } from "react";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import Card from "../components/Card";
 import Badge from "../components/Badge";
+import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 import Spinner from "../components/Spinner";
 
@@ -23,9 +25,15 @@ interface BillingStatus {
   payments: PaymentRow[];
 }
 
+const PRICE_PER_MONTH_NGN = 5000; // keep in sync with the backend placeholder in nombaController.ts
+
 export default function Billing() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [periodMonths, setPeriodMonths] = useState(3);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     api
@@ -33,6 +41,19 @@ export default function Billing() {
       .then((res) => setStatus(res.data))
       .catch((err) => setError(err.response?.data?.error || "Couldn't load billing status."));
   }, []);
+
+  async function handlePay(e: FormEvent) {
+    e.preventDefault();
+    setPayError(null);
+    setPaying(true);
+    try {
+      const res = await api.post("/billing/pay", { periodMonths, email: user?.name ? undefined : undefined });
+      window.location.href = res.data.checkoutLink;
+    } catch (err: any) {
+      setPayError(err.response?.data?.error || "Couldn't start payment. Please try again.");
+      setPaying(false);
+    }
+  }
 
   if (error) {
     return (
@@ -65,10 +86,6 @@ export default function Billing() {
               locked for your account until payment is confirmed. Your students can still use exams already
               scheduled.
             </p>
-            <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-              Contact De-Benign to arrange payment — once confirmed, access reopens immediately, no action
-              needed on your end.
-            </p>
           </>
         ) : status.isPaidActive ? (
           <>
@@ -81,11 +98,32 @@ export default function Billing() {
           <>
             <Badge tone="warning">Free trial — {status.trialDaysLeft} day{status.trialDaysLeft === 1 ? "" : "s"} left</Badge>
             <p style={{ marginTop: 10, marginBottom: 0 }}>
-              Trial ends <strong>{new Date(status.trialEndsAt).toLocaleDateString()}</strong>. No action needed
-              until then — we'll be in touch about continuing afterward.
+              Trial ends <strong>{new Date(status.trialEndsAt).toLocaleDateString()}</strong>.
             </p>
           </>
         )}
+      </Card>
+
+      <Card style={{ marginBottom: 20 }}>
+        <h3>Pay with Nomba</h3>
+        <form onSubmit={handlePay}>
+          <div style={{ marginBottom: 12 }}>
+            <label>Number of months</label>
+            <select value={periodMonths} onChange={(e) => setPeriodMonths(Number(e.target.value))} style={{ width: "100%" }}>
+              <option value={1}>1 month — ₦{PRICE_PER_MONTH_NGN.toLocaleString()}</option>
+              <option value={3}>3 months (1 term) — ₦{(PRICE_PER_MONTH_NGN * 3).toLocaleString()}</option>
+              <option value={12}>12 months — ₦{(PRICE_PER_MONTH_NGN * 12).toLocaleString()}</option>
+            </select>
+          </div>
+          {payError && <p style={{ color: "var(--text-danger)", fontSize: 13, marginBottom: 10 }}>{payError}</p>}
+          <PrimaryButton type="submit" disabled={paying} style={{ width: "100%" }}>
+            {paying ? "Redirecting to Nomba…" : "Pay now"}
+          </PrimaryButton>
+        </form>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 10, marginBottom: 0 }}>
+          You'll be taken to Nomba's secure checkout. Your access updates automatically once payment is confirmed —
+          no need to come back and refresh manually.
+        </p>
       </Card>
 
       <h3>Payment history</h3>
