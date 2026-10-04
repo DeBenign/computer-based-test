@@ -25,7 +25,7 @@ interface BillingStatus {
   payments: PaymentRow[];
 }
 
-const PRICE_PER_MONTH_NGN = 5000; // keep in sync with the backend placeholder in nombaController.ts
+const PRICE_PER_MONTH_NGN = 15000; // keep in sync with the backend placeholder in nombaController.ts
 
 export default function Billing() {
   const { user } = useAuth();

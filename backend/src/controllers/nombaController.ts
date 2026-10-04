@@ -5,7 +5,7 @@ import { createCheckoutOrder } from "../services/nombaClient";
 import { applyPayment } from "../services/paymentService";
 import { verifyNombaSignature } from "../utils/verifyNombaWebhook";
 
-const PRICE_PER_MONTH_NGN = 5000; // PLACEHOLDER -- replace with your real termly price
+const PRICE_PER_MONTH_NGN = 15000; // PLACEHOLDER -- replace with your real termly price
 
 // Admin: starts a Nomba checkout for their own school.
 export async function initiatePayment(req: AuthedRequest, res: Response) {
