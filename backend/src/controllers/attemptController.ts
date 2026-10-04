@@ -44,6 +44,9 @@ export async function startOrResumeAttempt(req: AuthedRequest, res: Response) {
   let attempt = await ExamAttempt.findOne({ examId: exam._id, studentId: req.user!.userId });
 
   if (attempt) {
+    if (attempt.status !== "in-progress") {
+      return res.status(409).json({ error: "You've already submitted this exam.", alreadySubmitted: true });
+    }
     // Already started -- return the SAME frozen question order and options,
     // not reshuffled, so a page refresh mid-exam shows the same exam instead
     // of a blank screen (options were previously only sent on first start).

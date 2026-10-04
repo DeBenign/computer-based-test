@@ -131,7 +131,11 @@ export default function TestTaking() {
         if (leftover.length > 0) setHasPendingLocally(true);
 
         setAnswers(restored);
-      } catch (err: any) {
+          } catch (err: any) {
+        if (err.response?.data?.alreadySubmitted) {
+          navigate(rolePath("/exams"), { state: { message: "This exam was already submitted." } });
+          return;
+        }
         setError(err.response?.data?.error || "Couldn't start the exam.");
       } finally {
         setLoading(false);
@@ -290,9 +294,22 @@ export default function TestTaking() {
       await api.post(`/attempts/${attemptId}/submit`);
       clearPendingStorage(attemptId);
       navigate(rolePath("/exams"), { state: { message: auto ? "Time's up — your exam was submitted automatically." : "Exam submitted." } });
-    } catch {
-      setError("Couldn't reach the server. Your answers are saved on this device and will submit once you're back online.");
-      retrySubmitWhenOnline();
+        } catch (err: any) {
+      if (!err.response) {
+        // Genuine network failure -- no response came back at all.
+        setError("Couldn't reach the server. Your answers are saved on this device and will submit once you're back online.");
+        retrySubmitWhenOnline();
+      } else if (err.response.status === 400 && /already finalized/i.test(err.response.data?.error || "")) {
+        // The server already has this marked done -- the earlier submit likely
+        // succeeded and only its response got lost. Nothing left to retry.
+        clearPendingStorage(attemptId);
+        navigate(rolePath("/exams"), { state: { message: "This exam was already submitted." } });
+      } else {
+        // A real server-side rejection -- show it plainly, don't misread it as
+        // an offline issue, and don't retry blindly against the same error.
+        setError(err.response.data?.error || "Couldn't submit the exam. Please try again.");
+        setSubmitted(false);
+      }
     }
   }
 
