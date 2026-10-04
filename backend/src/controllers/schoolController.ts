@@ -5,6 +5,7 @@ import School from "../models/School";
 import User from "../models/User";
 import Payment from "../models/Payment";
 import { applyPayment } from "../services/paymentService";
+import { ensureTrialDates, getAccessStatus } from "../utils/schoolAccess";
 
 const TRIAL_DAYS = 90; // ~one term -- change this one line if your terms run differently
 
@@ -94,52 +95,26 @@ export async function recordPayment(req: AuthedRequest, res: Response) {
   }
 }
 
-  const school = await School.findById(req.params.id);
-  if (!school) return res.status(404).json({ error: "School not found" });
-
-  const existingRef = await Payment.findOne({ reference });
-  if (existingRef) return res.status(409).json({ error: "A payment with this reference already exists" });
-
-  const base = school.subscriptionPaidUntil && school.subscriptionPaidUntil.getTime() > Date.now()
-    ? school.subscriptionPaidUntil
-    : new Date();
-  const paidUntil = new Date(base.getTime() + periodMonths * 30 * 24 * 60 * 60 * 1000);
-
-  await Payment.create({
-    schoolId: school._id,
-    amount,
-    reference,
-    method: "manual",
-    periodMonths,
-    confirmedBy: req.user!.userId
-  });
-
-  school.subscriptionPaidUntil = paidUntil;
-  school.subscriptionStatus = "active";
-  await school.save();
-
-  res.json({ message: "Payment recorded", subscriptionPaidUntil: paidUntil });
-}
-
 // Admin: their own school's trial/subscription status + payment history.
 export async function getBillingStatus(req: AuthedRequest, res: Response) {
   const school = await School.findById(req.user!.schoolId);
   if (!school) return res.status(404).json({ error: "School not found" });
 
+  await ensureTrialDates(school);
+  const { trialActive, paidActive } = getAccessStatus(school);
+
   const payments = await Payment.find({ schoolId: school._id }).sort({ confirmedAt: -1 });
   const now = Date.now();
   const trialDaysLeft = Math.max(0, Math.ceil((school.trialEndsAt.getTime() - now) / (24 * 60 * 60 * 1000)));
-  const isPaidActive = !!school.subscriptionPaidUntil && school.subscriptionPaidUntil.getTime() > now;
-  const isTrialActive = school.trialEndsAt.getTime() > now;
 
   res.json({
     subscriptionStatus: school.subscriptionStatus,
     trialEndsAt: school.trialEndsAt,
     trialDaysLeft,
-    isTrialActive,
+    isTrialActive: trialActive,
     subscriptionPaidUntil: school.subscriptionPaidUntil,
-    isPaidActive,
-    accessBlocked: !isTrialActive && !isPaidActive,
+    isPaidActive: paidActive,
+    accessBlocked: !trialActive && !paidActive,
     payments: payments.map((p) => ({
       amount: p.amount,
       reference: p.reference,
