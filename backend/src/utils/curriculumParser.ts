@@ -1,7 +1,6 @@
 import mammoth from "mammoth";
 import { ICurriculumTopic } from "../models/Curriculum";
 
-import { PDFParse } from "pdf-parse";
 
 export type SourceType = "pdf" | "docx" | "text";
 
@@ -14,14 +13,16 @@ export function detectSourceType(fileName: string, mimeType: string): SourceType
 }
 
 export async function extractText(buffer: Buffer, type: SourceType): Promise<string> {
-  if (type === "pdf") {
-    const parser = new PDFParse({ data: new Uint8Array(buffer) });
-    try {
-      return (await parser.getText()).text;
-    } finally {
-      await parser.destroy();
-    }
-  }
+     if (type === "pdf") {
+     // eslint-disable-next-line @typescript-eslint/no-var-requires
+     const { PDFParse } = require("pdf-parse") as typeof import("pdf-parse");
+     const parser = new PDFParse({ data: new Uint8Array(buffer) });
+     try {
+       return (await parser.getText()).text;
+     } finally {
+       await parser.destroy();
+     }
+   }
   if (type === "docx") return (await mammoth.extractRawText({ buffer })).value;
   return buffer.toString("utf8");
 }
