@@ -5,6 +5,7 @@ import User from "../models/User";
 import { AuthedRequest } from "../middleware/auth";
 import School from "../models/School";
 import { ensureTrialDates, getAccessStatus } from "../utils/schoolAccess";
+import AuditLog from "../models/AuditLog";
 
 // Only a logged-in admin can call this (see authRoutes.ts). schoolId always
 // comes from the admin's own token, never from the request body, so an
@@ -34,8 +35,13 @@ export async function register(req: AuthedRequest, res: Response) {
 
 export async function login(req: Request, res: Response) {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    // "identifier" is an email OR a username (bulk-created students have a
+    // generated username and no real email). "email" is still accepted so
+    // older clients keep working.
+    const { identifier, email, password } = req.body;
+    const loginId = String(identifier ?? email ?? "").trim().toLowerCase();
+    if (!loginId || !password) return res.status(400).json({ error: "Enter your email or username and password." });
+    const user = await User.findOne({ $or: [{ email: loginId }, { username: loginId }] });
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -61,9 +67,31 @@ export async function login(req: Request, res: Response) {
       { expiresIn: process.env.JWT_EXPIRES_IN || "8h" } as jwt.SignOptions
     );
 
+    if (user.schoolId) {
+      try {
+        await AuditLog.create({
+          schoolId: user.schoolId,
+          actorId: user._id,
+          actorRole: user.role,
+          action: "auth.login",
+          summary: "Signed in",
+          entityType: "auth"
+        });
+      } catch (logErr) {
+        console.error("audit log write failed", logErr);
+      }
+    }
+
     return res.json({
       token,
-      user: { id: user._id, name: user.name, role: user.role, classId: user.classId, subjectIds: user.subjectIds }
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        classId: user.classId,
+        subjectIds: user.subjectIds,
+        mustChangePassword: !!user.mustChangePassword
+      }
     });
   } catch (err) {
     return res.status(500).json({ error: "Login failed" });
@@ -86,6 +114,7 @@ export async function changeOwnPassword(req: AuthedRequest, res: Response) {
   if (!valid) return res.status(401).json({ error: "Current password is incorrect." });
 
   user.passwordHash = await bcrypt.hash(newPassword, 10);
+  user.mustChangePassword = false;
   await user.save();
   res.json({ message: "Password changed." });
 }

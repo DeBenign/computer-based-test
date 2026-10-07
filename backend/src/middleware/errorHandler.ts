@@ -5,6 +5,10 @@ import { Request, Response, NextFunction } from "express";
 export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
   console.error(err);
 
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ error: "That file is too large. The limit is 4 MB." });
+  }
+
   // Mongoose validation error (required field missing, enum mismatch, etc.)
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors).map((e: any) => e.message);

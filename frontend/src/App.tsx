@@ -18,6 +18,11 @@ import SchoolManagement from "./pages/SchoolManagement";
 import ChangePassword from "./pages/ChangePassword";
 import Billing from "./pages/Billing";
 import Branding from "./pages/Branding";
+import Curriculum from "./pages/Curriculum";
+import AIQuestions from "./pages/AIQuestions";
+import Activity from "./pages/Activity";
+import PersonActivity from "./pages/PersonActivity";
+import AttemptDetail from "./pages/AttemptDetail";
 
 
 export default function App() {
@@ -39,14 +44,19 @@ export default function App() {
                   <Route path="users" element={<UserManagement />} />
                   <Route path="billing" element={<Billing />} />
                   <Route path="branding" element={<Branding />} />
+                  <Route path="activity" element={<Activity />} />
+                  <Route path="activity/people/:userId" element={<PersonActivity />} />
+                  <Route path="activity/attempts/:id" element={<AttemptDetail />} />
                 </Route>
                 <Route element={<RequireExactRole allow={["admin", "teacher"]} />}>
                   <Route path="questions" element={<QuestionBank />} />
+                  <Route path="curriculum" element={<Curriculum />} />
                   <Route path="exams/new" element={<ExamBuilder />} />
                   <Route path="exams/:id/edit" element={<ExamBuilder />} />
                 </Route>
                 <Route element={<RequireExactRole allow={["teacher"]} />}>
                   <Route path="grading/:examId" element={<GradingQueue />} />
+                  <Route path="ai-questions" element={<AIQuestions />} />
                 </Route>
                 <Route element={<RequireExactRole allow={["student"]} />}>
                   <Route path="exams/:id/take" element={<TestTaking />} />

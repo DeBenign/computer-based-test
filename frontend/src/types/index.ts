@@ -14,6 +14,7 @@ export interface AppUser {
   _id: string;
   name: string;
   email: string;
+  username?: string;
   role: "superadmin" | "admin" | "teacher" | "student";
   classId?: string;
   subjectIds?: string[];
@@ -32,6 +33,20 @@ export interface Question {
   correctAnswerText?: string;
   marks: number;
   curriculumTag?: string;
+  reviewStatus?: "draft" | "approved";
+  source?: "manual" | "ai";
+}
+
+export interface CurriculumItem {
+  _id: string;
+  classId: string;
+  subjectId: string;
+  title: string;
+  fileName?: string;
+  sourceType: "pdf" | "docx" | "text";
+  charCount: number;
+  topics: string[];
+  createdAt: string;
 }
 
 export interface Exam {

@@ -3,6 +3,7 @@ import { AuthedRequest } from "../middleware/auth";
 import Exam from "../models/Exam";
 import ExamAttempt from "../models/ExamAttempt";
 import Question from "../models/Question";
+import { gradeAttempt } from "../services/gradeAttempt";
 
 const LOCKDOWN_VIOLATION_LIMIT = 3;
 
@@ -33,19 +34,18 @@ async function buildQuestionPayload(questionOrder: any[], randomizeOptions: bool
 export async function startOrResumeAttempt(req: AuthedRequest, res: Response) {
   const exam = await Exam.findOne({ _id: req.params.examId, schoolId: req.user!.schoolId });
   if (!exam) return res.status(404).json({ error: "Exam not found" });
-  if (exam.status !== "scheduled" && exam.status !== "live") {
-    return res.status(400).json({ error: "Exam is not open" });
-  }
 
   const now = new Date();
-  if (now < exam.startTime) return res.status(400).json({ error: "Exam has not started yet" });
-  if (now > exam.endTime) return res.status(400).json({ error: "Exam window has closed" });
-
   let attempt = await ExamAttempt.findOne({ examId: exam._id, studentId: req.user!.userId });
 
   if (attempt) {
     if (attempt.status !== "in-progress") {
       return res.status(409).json({ error: "You've already submitted this exam.", alreadySubmitted: true });
+    }
+    // Resume is judged by the attempt's own deadline, not the exam's status or
+    // window: an admin may have reopened it after the window closed.
+    if (now > attempt.serverEndTime) {
+      return res.status(400).json({ error: "Your time for this exam has ended." });
     }
     // Already started -- return the SAME frozen question order and options,
     // not reshuffled, so a page refresh mid-exam shows the same exam instead
@@ -53,6 +53,12 @@ export async function startOrResumeAttempt(req: AuthedRequest, res: Response) {
     const orderedQuestions = await buildQuestionPayload(attempt.questionOrder, false);
     return res.json({ attempt, questions: orderedQuestions, lockdownRequired: exam.lockdownRequired });
   }
+
+  if (exam.status !== "scheduled" && exam.status !== "live") {
+    return res.status(400).json({ error: "Exam is not open" });
+  }
+  if (now < exam.startTime) return res.status(400).json({ error: "Exam has not started yet" });
+  if (now > exam.endTime) return res.status(400).json({ error: "Exam window has closed" });
 
   let questionOrder = exam.questionIds.map((id) => id.toString());
   if (exam.randomizeQuestions) questionOrder = shuffle(questionOrder);
@@ -164,37 +170,4 @@ async function autoSubmit(attempt: any, res: Response) {
   await attempt.save();
   await gradeAttempt(attempt);
   return res.status(200).json({ error: "Time expired, attempt auto-submitted", attempt });
-}
-
-async function gradeAttempt(attempt: any) {
-  const questions = await Question.find({ _id: { $in: attempt.questionOrder } });
-  const byId = new Map(questions.map((q) => [q._id.toString(), q]));
-
-  let score = 0;
-  let needsGrading = false;
-
-  for (const answer of attempt.answers) {
-    const question = byId.get(answer.questionId.toString());
-    if (!question) continue;
-
-    if (question.type === "mcq") {
-      const correct = question.options.find((o) => o.isCorrect);
-      if (correct && answer.selectedOption === correct.text) {
-        score += question.marks;
-      }
-    } else if (question.type === "theory") {
-      if (answer.answerText && answer.answerText.trim().length > 0) {
-        if (typeof answer.marksAwarded === "number") {
-          score += answer.marksAwarded;
-        } else {
-          needsGrading = true;
-        }
-      }
-      // an unanswered theory question needs no grading action -- it's just 0
-    }
-  }
-
-  attempt.score = score;
-  attempt.needsGrading = needsGrading;
-  await attempt.save();
 }

@@ -94,8 +94,16 @@ export async function attachQuestions(req: AuthedRequest, res: Response) {
     return res.status(400).json({ error: "Only draft exams can be modified" });
   }
 
+  // Only questions from this school, and never un-reviewed AI drafts.
+  const valid = await Question.find({
+    _id: { $in: questionIds },
+    schoolId: req.user!.schoolId,
+    reviewStatus: { $ne: "draft" }
+  }).select("_id");
+  const validIds = valid.map((q) => q._id.toString());
+
   const existing = exam.questionIds.map((id) => id.toString());
-  const merged = Array.from(new Set([...existing, ...questionIds]));
+  const merged = Array.from(new Set([...existing, ...validIds]));
   exam.questionIds = merged as any;
   await exam.save();
   res.json(exam);
@@ -136,7 +144,8 @@ export async function autoFill(req: AuthedRequest, res: Response) {
     schoolId: new mongoose.Types.ObjectId(req.user!.schoolId),
     subjectId: exam.subjectId,
     classId: exam.classId,
-    type: "mcq"
+    type: "mcq",
+    reviewStatus: { $ne: "draft" }
   };
   if (topics && topics.length > 0) {
     // Case-insensitive match -- "marriage" should still find a "Marriage" topic.

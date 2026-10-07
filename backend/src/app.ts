@@ -20,6 +20,10 @@ import { errorHandler } from "./middleware/errorHandler";
 import brandingRoutes from "./routes/brandingRoutes";
 import { handleNombaWebhook } from "./controllers/nombaController";
 import { asyncHandler } from "./middleware/asyncHandler";
+import { activityLogger } from "./middleware/activityLogger";
+import curriculumRoutes from "./routes/curriculumRoutes";
+import activityRoutes from "./routes/activityRoutes";
+import reviewRoutes from "./routes/reviewRoutes";
 
 const app = express();
 const allowedOrigins = [
@@ -38,6 +42,7 @@ app.use(express.json({
 }));
 
 const v1 = express.Router();
+v1.use(activityLogger);
 
 v1.post("/webhooks/nomba", asyncHandler(handleNombaWebhook));
 
@@ -52,12 +57,16 @@ v1.use("/admin/subjects", requireAuth, requireRole("admin"), requireActiveSubscr
 v1.use("/admin/users", requireAuth, requireRole("admin"), requireActiveSubscription, userRoutes);
 v1.use("/admin/questions", requireAuth, requireRole("admin"), requireActiveSubscription, adminQuestionRoutes);
 v1.use("/admin/exams", requireAuth, requireRole("admin"), requireActiveSubscription, adminExamRoutes);
+v1.use("/admin/curriculum", requireAuth, requireRole("admin"), requireActiveSubscription, curriculumRoutes);
+v1.use("/admin/activity", requireAuth, requireRole("admin"), requireActiveSubscription, activityRoutes);
+v1.use("/admin/review", requireAuth, requireRole("admin"), requireActiveSubscription, reviewRoutes);
 
 
 v1.use("/teacher/branding", requireAuth, requireRole("teacher"), brandingRoutes);
 v1.use("/teacher/classes", requireAuth, requireRole("teacher"), requireActiveSubscription, classRoutes);
 v1.use("/teacher/subjects", requireAuth, requireRole("teacher"), requireActiveSubscription, subjectRoutes);
 v1.use("/teacher/questions", requireAuth, requireRole("teacher"), requireActiveSubscription, questionRoutes);
+v1.use("/teacher/curriculum", requireAuth, requireRole("teacher"), requireActiveSubscription, curriculumRoutes);
 v1.use("/teacher/exams", requireAuth, requireRole("teacher"), requireActiveSubscription, examRoutes);
 v1.use("/teacher/results", requireAuth, requireRole("teacher"), requireActiveSubscription, resultRoutes);
 v1.use("/teacher/grading", requireAuth, requireRole("teacher"), requireActiveSubscription, gradingRoutes);

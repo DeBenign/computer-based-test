@@ -6,6 +6,7 @@ import Card from "../components/Card";
 import Badge from "../components/Badge";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
+import BulkUpload from "../components/BulkUpload";
 import { useRolePath } from "../hooks/useRolePath";
 import { useConfirm } from "../context/ConfirmContext";
 
@@ -34,27 +35,49 @@ export default function UserManagement() {
   const [subjectId, setSubjectId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [filterClass, setFilterClass] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resetDrafts, setResetDrafts] = useState<Record<string, string>>({});
   const [resetMessages, setResetMessages] = useState<Record<string, string>>({});
 
   async function loadAll() {
-    const [userRes, classRes, subRes] = await Promise.all([
-      api.get("/users"),
-      api.get("/classes"),
-      api.get("/subjects")
-    ]);
-    setUsers(userRes.data);
+    const [classRes, subRes] = await Promise.all([api.get("/classes"), api.get("/subjects")]);
     setClasses(classRes.data);
     setSubjects(subRes.data);
     if (classRes.data.length > 0 && !classId) setClassId(classRes.data[0]._id);
     if (subRes.data.length > 0 && !subjectId) setSubjectId(subRes.data[0]._id);
   }
 
+  async function loadUsers() {
+    const res = await api.get("/users", {
+      params: {
+        page,
+        limit: 25,
+        q: search || undefined,
+        role: filterRole || undefined,
+        classId: filterClass || undefined
+      }
+    });
+    setUsers(res.data.items);
+    setPages(res.data.pages);
+    setTotal(res.data.total);
+  }
+
   useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search, filterRole, filterClass]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -79,7 +102,7 @@ export default function UserManagement() {
       setName("");
       setEmail("");
       setPassword("");
-      await loadAll();
+      await loadUsers();
     } catch (err: any) {
       setError(err.response?.data?.error || "Couldn't create the account.");
     }
@@ -90,7 +113,7 @@ export default function UserManagement() {
     if (!ok) return;
     try {
       await api.delete(`/users/${id}`);
-      await loadAll();
+      await loadUsers();
     } catch (err: any) {
       setError(err.response?.data?.error || "Couldn't delete the account.");
     }
@@ -130,8 +153,8 @@ export default function UserManagement() {
     <PageShell maxWidth={760}>
       <h1>Manage users</h1>
       <p style={{ color: "var(--text-secondary)", marginBottom: 20 }}>
-        Create login accounts for teachers and students. Share the email and password with them directly —
-        there's no public sign-up, so this is the only way anyone gets access.
+        Create login accounts for teachers and students — one at a time, or a whole class or school from a spreadsheet.
+        There's no public sign-up, so this is the only way anyone gets access.
       </p>
 
       {duplicateClassNames.size > 0 && (
@@ -156,9 +179,11 @@ export default function UserManagement() {
         </Card>
       )}
 
+      {!missingSetup && <BulkUpload classes={classes} onDone={loadUsers} />}
+
       {!missingSetup && (
         <Card style={{ marginBottom: 24 }}>
-          <h3>Add a user</h3>
+          <h3>Add a single user</h3>
           <form onSubmit={handleCreate}>
             <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
               <div style={{ flex: 1 }}>
@@ -226,7 +251,29 @@ export default function UserManagement() {
         </Card>
       )}
 
-      <h3>Existing users ({users.length})</h3>
+      <h3>Existing users ({total})</h3>
+      <form
+        onSubmit={(e) => { e.preventDefault(); setPage(1); setSearch(searchDraft.trim()); }}
+        style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}
+      >
+        <input
+          value={searchDraft}
+          onChange={(e) => setSearchDraft(e.target.value)}
+          placeholder="Search name, username or email"
+          style={{ flex: 1, minWidth: 180 }}
+        />
+        <select value={filterRole} onChange={(e) => { setPage(1); setFilterRole(e.target.value); }}>
+          <option value="">All roles</option>
+          <option value="student">Students</option>
+          <option value="teacher">Teachers</option>
+        </select>
+        <select value={filterClass} onChange={(e) => { setPage(1); setFilterClass(e.target.value); }}>
+          <option value="">All classes</option>
+          {classes.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+        </select>
+        <button type="submit">Search</button>
+      </form>
+      {users.length === 0 && <p style={{ color: "var(--text-secondary)" }}>No users match.</p>}
       {users.map((u) => {
         const cls = u.classId ? classById[u.classId] : undefined;
         const subj = u.subjectIds?.[0] ? subjectById[u.subjectIds[0]] : undefined;
@@ -239,7 +286,9 @@ export default function UserManagement() {
             >
               <div>
                 <p style={{ fontWeight: 500, marginBottom: 2 }}>{u.name}</p>
-                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 2 }}>{u.email}</p>
+                <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 2 }}>
+                  {u.email.endsWith("@users.benchmark.local") ? `Username: ${u.username}` : `${u.email}${u.username ? ` · username: ${u.username}` : ""}`}
+                </p>
                 {u.role === "student" && (
                   <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 0 }}>
                     Class: {cls ? `${cls.name} (id:${idSuffix(cls._id)})` : "none assigned"}
@@ -298,6 +347,14 @@ export default function UserManagement() {
           </Card>
         );
       })}
+
+      {pages > 1 && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginTop: 16 }}>
+          <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</button>
+          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Page {page} of {pages}</span>
+          <button type="button" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>Next</button>
+        </div>
+      )}
     </PageShell>
   );
 }

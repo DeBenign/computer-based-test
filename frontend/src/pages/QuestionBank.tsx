@@ -154,7 +154,14 @@ export default function QuestionBank() {
 
   return (
     <PageShell maxWidth={760}>
-      <h1>Question bank</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+        <h1 style={{ marginBottom: 0 }}>Question bank</h1>
+        {canManage && (
+          <Link to={rolePath("/ai-questions")}>
+            <PrimaryButton type="button">Generate with AI</PrimaryButton>
+          </Link>
+        )}
+      </div>
 
       <Card style={{ marginBottom: 24 }}>
         <h3>Filter</h3>

@@ -41,8 +41,11 @@ export async function createQuestion(req: AuthedRequest, res: Response) {
 }
 
 export async function listQuestions(req: AuthedRequest, res: Response) {
-  const { subjectId, classId, topic, difficulty, type } = req.query;
+  const { subjectId, classId, topic, difficulty, type, reviewStatus } = req.query;
   const filter: Record<string, unknown> = { schoolId: req.user!.schoolId };
+  // AI drafts stay out of the normal bank until a teacher approves them.
+  // (Older questions have no reviewStatus at all, hence $ne rather than "approved".)
+  filter.reviewStatus = reviewStatus === "draft" ? "draft" : { $ne: "draft" };
   if (subjectId) filter.subjectId = subjectId;
   if (classId) filter.classId = classId;
   if (topic) filter.topic = topic;
@@ -61,10 +64,15 @@ export async function updateQuestion(req: AuthedRequest, res: Response) {
     return res.status(403).json({ error: "You're not assigned to this subject." });
   }
 
+  // Only editable content fields -- never schoolId, createdBy, reviewStatus etc.
+  const allowed = ["topic", "difficulty", "questionText", "imageUrl", "options", "correctAnswerText", "marks", "curriculumTag"];
+  const update: Record<string, unknown> = {};
+  for (const key of allowed) if (key in req.body) update[key] = req.body[key];
+
   const question = await Question.findOneAndUpdate(
     { _id: req.params.id, schoolId: req.user!.schoolId },
-    req.body,
-    { new: true }
+    update,
+    { new: true, runValidators: true }
   );
   res.json(question);
 }

@@ -7,7 +7,7 @@ import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,9 +20,13 @@ export default function Login() {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post("/auth/login", { email, password });
+      const res = await api.post("/auth/login", { identifier, password });
       login(res.data.token, res.data.user);
       const role = res.data.user.role;
+      if (res.data.user.mustChangePassword) {
+        navigate(`/${role}/change-password`);
+        return;
+      }
       if (role === "superadmin") navigate(`/${role}/schools`);
       else navigate(role === "student" ? `/${role}/exams` : `/${role}/questions`);
     } catch (err: any) {
@@ -45,12 +49,14 @@ export default function Login() {
         </p>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 14 }}>
-            <label>Email</label>
+            <label>Email or username</label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="name@school.com"
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="name@school.com or your username"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
               style={{ width: "100%" }}
             />

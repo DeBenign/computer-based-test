@@ -1,10 +1,15 @@
 import { useState, FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useAuth } from "../context/AuthContext";
 import Card from "../components/Card";
 import PrimaryButton from "../components/PrimaryButton";
 import PageShell from "../components/PageShell";
 
 export default function ChangePassword() {
+  const { user, clearMustChangePassword } = useAuth();
+  const navigate = useNavigate();
+  const forced = !!user?.mustChangePassword;
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -25,6 +30,11 @@ export default function ChangePassword() {
     try {
       await api.post("/auth/change-password", { currentPassword, newPassword });
       setSuccess("Password changed.");
+      if (forced) {
+        clearMustChangePassword();
+        navigate(user?.role === "student" ? `/${user.role}/exams` : `/${user?.role}/questions`, { replace: true });
+        return;
+      }
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -35,7 +45,12 @@ export default function ChangePassword() {
 
   return (
     <PageShell maxWidth={420}>
-      <h1>Change password</h1>
+      <h1>{forced ? "Choose your own password" : "Change password"}</h1>
+      {forced && (
+        <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 16 }}>
+          You signed in with a temporary password. Set a new one to continue — use the temporary password as the "current" one.
+        </p>
+      )}
       <Card>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 12 }}>

@@ -35,6 +35,12 @@ export default function Navbar({ logoUrl, schoolName }: NavbarProps) {
         {(user?.role === "teacher" || user?.role === "admin") && (
           <Link to={rolePath("/questions")} style={{ color: "var(--text-secondary)" }}>Questions</Link>
         )}
+        {(user?.role === "teacher" || user?.role === "admin") && (
+          <Link to={rolePath("/curriculum")} style={{ color: "var(--text-secondary)" }}>Curriculum</Link>
+        )}
+        {user?.role === "teacher" && (
+          <Link to={rolePath("/ai-questions")} style={{ color: "var(--text-secondary)" }}>AI questions</Link>
+        )}
         {user?.role !== "superadmin" && (
           <Link to={rolePath("/exams")} style={{ color: "var(--text-secondary)" }}>Exams</Link>
         )}
@@ -44,6 +50,7 @@ export default function Navbar({ logoUrl, schoolName }: NavbarProps) {
         {user?.role === "admin" && (
           <>
             <Link to={rolePath("/users")} style={{ color: "var(--text-secondary)" }}>Users</Link>
+            <Link to={rolePath("/activity")} style={{ color: "var(--text-secondary)" }}>Activity</Link>
             <Link to={rolePath("/billing")} style={{ color: "var(--text-secondary)" }}>Billing</Link>
             <Link to={rolePath("/branding")} style={{ color: "var(--text-secondary)" }}>Branding</Link>
           </>
